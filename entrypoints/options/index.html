@@ -3,203 +3,371 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="manifest.open_in_tab" content="true" />
-        <title>Tabdrift :: Settings</title>
+        <title>Tabdrift settings</title>
         <style>
             :root {
                 color-scheme: dark;
+                --bg: #121316;
+                --bg-raised: #1a1c20;
+                --border: rgba(255, 255, 255, 0.08);
+                --border-strong: rgba(255, 255, 255, 0.16);
+                --text: #ededef;
+                --text-dim: rgba(237, 237, 239, 0.52);
+                --text-faint: rgba(237, 237, 239, 0.3);
+                --accent: #3b82f6;
+                --sans:
+                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+                    Helvetica, Arial, sans-serif;
+                --mono:
+                    ui-monospace, "SF Mono", "Cascadia Mono", Consolas,
+                    "Liberation Mono", monospace;
             }
             * {
                 box-sizing: border-box;
             }
             body {
                 margin: 0;
-                font-family:
-                    -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-                    Helvetica, Arial, sans-serif;
-                background: #161618;
-                color: #f1f1f3;
+                font-family: var(--sans);
+                background: var(--bg);
+                color: var(--text);
                 display: flex;
                 justify-content: center;
-                padding: 48px 20px;
+                padding: 56px 20px;
             }
             main {
-                width: 420px;
+                width: 460px;
             }
-            h1 {
-                font-size: 20px;
-                margin: 0 0 4px;
+
+            header {
+                margin-bottom: 28px;
             }
-            p.sub {
-                color: rgba(255, 255, 255, 0.5);
-                margin: 0 0 28px;
-                font-size: 13px;
-            }
-            .field {
-                margin-bottom: 22px;
-            }
-            label {
-                display: block;
-                font-size: 13px;
-                font-weight: 600;
-                margin-bottom: 8px;
-            }
-            fieldset {
-                border: none;
-                margin: 0;
-                padding: 0;
-            }
-            legend {
-                font-size: 13px;
-                font-weight: 600;
-                margin-bottom: 8px;
-                padding: 0;
-            }
-            .hint {
-                font-size: 12px;
-                color: rgba(255, 255, 255, 0.45);
-                margin-top: 6px;
-            }
-            #shortcut-input {
-                width: 100%;
-                padding: 11px 14px;
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                background: rgba(255, 255, 255, 0.05);
-                color: #fff;
-                font-size: 14px;
-                cursor: pointer;
-                text-align: center;
-                letter-spacing: 0.02em;
-            }
-            #shortcut-input.recording {
-                border-color: var(--accent, #3b82f6);
-                background: rgba(59, 130, 246, 0.12);
-            }
-            .position-options {
-                display: flex;
-                gap: 10px;
-            }
-            .position-options label {
-                flex: 1;
-                margin: 0;
+            .mark {
                 display: flex;
                 align-items: center;
-                justify-content: center;
-                gap: 6px;
-                padding: 10px 0;
-                border-radius: 8px;
-                border: 1px solid rgba(255, 255, 255, 0.15);
-                background: rgba(255, 255, 255, 0.04);
+                gap: 8px;
+            }
+            .mark svg {
+                color: var(--accent);
+                flex-shrink: 0;
+                transition: color 0.15s ease;
+            }
+            .mark span {
+                font-size: 14px;
+                font-weight: 600;
+                letter-spacing: -0.01em;
+            }
+            .tagline {
+                margin: 4px 0 0 26px;
+                font-size: 12.5px;
+                color: var(--text-dim);
+            }
+
+            .panel {
+                border-top: 1px solid var(--border);
+            }
+            .row {
+                display: grid;
+                grid-template-columns: 152px 1fr;
+                gap: 20px;
+                padding: 22px 0;
+                border-bottom: 1px solid var(--border);
+            }
+            .row-copy .row-title {
+                display: block;
                 font-size: 13px;
                 font-weight: 500;
+                margin-bottom: 4px;
+            }
+            .row-hint {
+                margin: 0;
+                font-size: 12px;
+                line-height: 1.5;
+                color: var(--text-dim);
+            }
+            .row-control {
+                display: flex;
+                justify-content: flex-end;
+                align-items: center;
+            }
+
+            /* shortcut keycaps */
+            #shortcut-input {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+                padding: 4px;
+                border: none;
+                background: none;
+                font: inherit;
+                color: inherit;
+                border-radius: 8px;
+                cursor: pointer;
+                outline: none;
+            }
+            #shortcut-input:focus-visible,
+            #shortcut-input.recording {
+                box-shadow: 0 0 0 2px var(--accent);
+            }
+            .keycap {
+                min-width: 22px;
+                height: 26px;
+                padding: 0 8px;
+                display: inline-flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--bg-raised);
+                border: 1px solid var(--border-strong);
+                border-radius: 6px;
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--text);
+                box-shadow: 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+            }
+            .keycap-join {
+                font-size: 11px;
+                color: var(--text-faint);
+                padding: 0 1px;
+            }
+            .keycap-placeholder {
+                font-size: 12px;
+                color: var(--text-dim);
+                padding: 0 6px;
+                height: 26px;
+                display: inline-flex;
+                align-items: center;
+            }
+
+            /* mini browser / position preview */
+            .mini-browser {
+                width: 232px;
+                border-radius: 10px;
+                overflow: hidden;
+                background: var(--bg-raised);
+                border: 1px solid var(--border);
+            }
+            .mini-chrome {
+                display: flex;
+                gap: 4px;
+                padding: 7px 9px;
+                border-bottom: 1px solid var(--border);
+            }
+            .mini-chrome span {
+                width: 6px;
+                height: 6px;
+                border-radius: 50%;
+                background: rgba(255, 255, 255, 0.16);
+            }
+            .mini-body {
+                position: relative;
+                height: 128px;
+                display: flex;
+                flex-direction: column;
+                padding: 10px;
+            }
+            .mini-body[data-position="top"] {
+                justify-content: flex-start;
+            }
+            .mini-body[data-position="center"] {
+                justify-content: center;
+            }
+            .mini-body[data-position="bottom"] {
+                justify-content: flex-end;
+            }
+            .mini-line {
+                height: 5px;
+                border-radius: 3px;
+                background: rgba(255, 255, 255, 0.06);
+                margin-bottom: 6px;
+            }
+            .mini-line:nth-child(1) {
+                width: 70%;
+            }
+            .mini-line:nth-child(2) {
+                width: 45%;
+            }
+            .zone {
+                position: absolute;
+                inset: 0;
+                height: 33.33%;
+                width: 100%;
+                background: none;
+                border: none;
+                padding: 0;
                 cursor: pointer;
             }
-            .position-options input {
-                accent-color: var(--accent, #3b82f6);
+            .zone[data-position="top"] {
+                top: 0;
             }
-            .position-options label:has(input:checked) {
-                border-color: var(--accent, #3b82f6);
-                background: color-mix(
-                    in srgb,
-                    var(--accent, #3b82f6) 20%,
-                    transparent
-                );
+            .zone[data-position="center"] {
+                top: 33.33%;
+            }
+            .zone[data-position="bottom"] {
+                top: 66.66%;
+            }
+            .zone:hover {
+                background: rgba(255, 255, 255, 0.03);
+            }
+            #mini-card {
+                position: relative;
+                z-index: 1;
+                width: 68%;
+                height: 22px;
+                border-radius: 6px;
+                background: var(--accent);
+                opacity: 0.85;
+                pointer-events: none;
+            }
+
+            /* accent */
+            .accent-control {
+                gap: 10px;
             }
             input[type="color"] {
-                width: 48px;
-                height: 36px;
-                border: none;
+                width: 30px;
+                height: 30px;
+                padding: 0;
+                border: 1px solid var(--border-strong);
                 border-radius: 8px;
                 background: none;
                 cursor: pointer;
             }
-            .accent-row {
+            #accent-value {
+                font-family: var(--mono);
+                font-size: 12.5px;
+                color: var(--text-dim);
+            }
+
+            footer {
                 display: flex;
                 align-items: center;
+                justify-content: flex-end;
                 gap: 12px;
-            }
-            #accent-value {
-                font-size: 13px;
-                color: rgba(255, 255, 255, 0.6);
-            }
-            button#save {
-                width: 100%;
-                padding: 12px;
-                border: none;
-                border-radius: 8px;
-                background: var(--accent, #3b82f6);
-                color: #fff;
-                font-size: 14px;
-                font-weight: 600;
-                cursor: pointer;
-                margin-top: 10px;
-            }
-            button#save:active {
-                transform: scale(0.99);
+                margin-top: 24px;
             }
             #status {
-                text-align: center;
                 font-size: 12.5px;
-                color: rgba(255, 255, 255, 0.5);
-                margin-top: 10px;
-                height: 16px;
+                color: var(--text-dim);
+            }
+            button#save {
+                padding: 9px 16px;
+                border: none;
+                border-radius: 8px;
+                background: var(--text);
+                color: #121316;
+                font-size: 13px;
+                font-weight: 600;
+                cursor: pointer;
+            }
+            button#save:active {
+                transform: scale(0.98);
             }
         </style>
     </head>
     <body>
         <main>
-            <h1>Tabdrift</h1>
-            <p class="sub">
-                Configure the shortcut, overlay position, and accent color.
-            </p>
-
-            <div class="field">
-                <label for="shortcut-input">Keyboard shortcut</label>
-                <input
-                    id="shortcut-input"
-                    type="text"
-                    readonly
-                    value="Alt+Shift+K"
-                />
-                <div class="hint">
-                    Click, then press your new combo. Needs Ctrl or Alt plus a
-                    key.
-                </div>
-            </div>
-
-            <fieldset class="field">
-                <legend>Overlay position</legend>
-                <div class="position-options">
-                    <label
-                        ><input type="radio" name="position" value="top" />
-                        Top</label
+            <header>
+                <div class="mark">
+                    <svg
+                        viewBox="0 0 24 24"
+                        width="18"
+                        height="18"
+                        aria-hidden="true"
                     >
-                    <label
-                        ><input
-                            type="radio"
-                            name="position"
-                            value="center"
-                            checked
+                        <path
+                            fill="none"
+                            stroke="currentColor"
+                            stroke-width="2"
+                            stroke-linecap="round"
+                            d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm10 17-5.6-5.6"
                         />
-                        Center</label
-                    >
-                    <label
-                        ><input type="radio" name="position" value="bottom" />
-                        Bottom</label
-                    >
+                    </svg>
+                    <span>Tabdrift</span>
                 </div>
-            </fieldset>
+                <p class="tagline">Search overlay settings</p>
+            </header>
 
-            <div class="field">
-                <label for="accent-input">Accent color</label>
-                <div class="accent-row">
-                    <input id="accent-input" type="color" value="#3b82f6" />
-                    <span id="accent-value">#3b82f6</span>
+            <section class="panel">
+                <div class="row">
+                    <div class="row-copy">
+                        <span class="row-title" id="shortcut-label"
+                            >Open shortcut</span
+                        >
+                        <p class="row-hint">
+                            Click the keys, then press a new combo.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <button
+                            id="shortcut-input"
+                            type="button"
+                            aria-labelledby="shortcut-label"
+                        ></button>
+                    </div>
                 </div>
-            </div>
 
-            <button id="save" type="button">Save settings</button>
-            <div id="status"></div>
+                <div class="row">
+                    <div class="row-copy">
+                        <span class="row-title">Overlay position</span>
+                        <p class="row-hint">
+                            Click the preview to choose where the card appears.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div class="mini-browser">
+                            <div class="mini-chrome">
+                                <span></span><span></span><span></span>
+                            </div>
+                            <div
+                                id="mini-body"
+                                class="mini-body"
+                                data-position="center"
+                            >
+                                <button
+                                    class="zone"
+                                    type="button"
+                                    data-position="top"
+                                    aria-label="Show at the top"
+                                ></button>
+                                <button
+                                    class="zone"
+                                    type="button"
+                                    data-position="center"
+                                    aria-label="Show in the center"
+                                ></button>
+                                <button
+                                    class="zone"
+                                    type="button"
+                                    data-position="bottom"
+                                    aria-label="Show at the bottom"
+                                ></button>
+                                <div class="mini-line"></div>
+                                <div class="mini-line"></div>
+                                <div id="mini-card"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <label class="row-title" for="accent-input"
+                            >Accent color</label
+                        >
+                        <p class="row-hint">
+                            Used for the overlay's highlight and border.
+                        </p>
+                    </div>
+                    <div class="row-control accent-control">
+                        <input id="accent-input" type="color" value="#3b82f6" />
+                        <span id="accent-value">#3B82F6</span>
+                    </div>
+                </div>
+            </section>
+
+            <footer>
+                <span id="status" role="status"></span>
+                <button id="save" type="button">Save changes</button>
+            </footer>
         </main>
         <script type="module" src="./main.ts"></script>
     </body>

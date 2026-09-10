@@ -1,75 +1,117 @@
-import type { TabSearchSettings } from "../../lib/settings";
+import type { OverlayPosition, TabSearchSettings } from "../../lib/settings";
 import { DEFAULT_SETTINGS, eventToShortcut, getSettings, saveSettings } from "../../lib/settings";
 
-const shortcutInput = document.getElementById("shortcut-input") as HTMLInputElement;
+const shortcutInput = document.getElementById("shortcut-input") as HTMLButtonElement;
+const miniBody = document.getElementById("mini-body") as HTMLDivElement;
+const zones = document.querySelectorAll<HTMLButtonElement>(".zone");
 const accentInput = document.getElementById("accent-input") as HTMLInputElement;
 const accentValue = document.getElementById("accent-value") as HTMLSpanElement;
-const positionInputs = document.querySelectorAll<HTMLInputElement>('input[name="position"]');
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const status = document.getElementById("status") as HTMLDivElement;
 
 let recording = false;
 let currentShortcut = DEFAULT_SETTINGS.shortcut;
+let currentPosition: OverlayPosition = DEFAULT_SETTINGS.position;
 
 init();
 
 async function init() {
     const settings = await getSettings();
     currentShortcut = settings.shortcut;
-    shortcutInput.value = settings.shortcut;
-    accentInput.value = settings.accent;
-    accentValue.textContent = settings.accent;
-    document.documentElement.style.setProperty("--accent", settings.accent);
+    currentPosition = settings.position;
 
-    positionInputs.forEach((el) => {
-        el.checked = el.value === settings.position;
+    renderKeycaps(currentShortcut);
+    setPosition(currentPosition);
+
+    accentInput.value = settings.accent;
+    setAccent(settings.accent);
+}
+
+function renderKeycaps(shortcut: string) {
+    shortcutInput.innerHTML = "";
+    const parts = shortcut.split("+");
+    parts.forEach((part, i) => {
+        if (i > 0) {
+            const join = document.createElement("span");
+            join.className = "keycap-join";
+            join.textContent = "+";
+            shortcutInput.appendChild(join);
+        }
+        const cap = document.createElement("span");
+        cap.className = "keycap";
+        cap.textContent = part;
+        shortcutInput.appendChild(cap);
     });
 }
 
-shortcutInput.addEventListener("click", () => {
-    recording = true;
-    shortcutInput.classList.add("recording");
-    shortcutInput.value = "Press a combo...";
-});
+function setPosition(position: OverlayPosition) {
+    currentPosition = position;
+    miniBody.dataset.position = position;
+    zones.forEach((zone) => {
+        zone.setAttribute("aria-pressed", String(zone.dataset.position === position));
+    });
+}
 
+function setAccent(hex: string) {
+    document.documentElement.style.setProperty("--accent", hex);
+    accentValue.textContent = hex.toUpperCase();
+}
+
+shortcutInput.addEventListener("click", startRecording);
 shortcutInput.addEventListener("keydown", (e) => {
     if (!recording) {
+        if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            startRecording();
+        }
         return;
     }
     e.preventDefault();
 
-    const combo = eventToShortcut(e);
+    const combo = eventToShortcut(e as KeyboardEvent);
     if (!combo) {
-        shortcutInput.value = "Needs Ctrl/Alt + a key";
         return;
     }
 
     currentShortcut = combo;
-    shortcutInput.value = combo;
-    recording = false;
-    shortcutInput.classList.remove("recording");
+    renderKeycaps(combo);
+    stopRecording();
 });
 
 shortcutInput.addEventListener("blur", () => {
     if (recording) {
-        recording = false;
-        shortcutInput.classList.remove("recording");
-        shortcutInput.value = currentShortcut;
+        stopRecording();
+        renderKeycaps(currentShortcut);
     }
 });
 
+function startRecording() {
+    recording = true;
+    shortcutInput.classList.add("recording");
+    shortcutInput.innerHTML = '<span class="keycap-placeholder">Press a combo…</span>';
+}
+
+function stopRecording() {
+    recording = false;
+    shortcutInput.classList.remove("recording");
+}
+
+zones.forEach((zone) => {
+    zone.addEventListener("click", () => {
+        const position = zone.dataset.position as OverlayPosition;
+        setPosition(position);
+    });
+});
+
 accentInput.addEventListener("input", () => {
-    accentValue.textContent = accentInput.value;
-    document.documentElement.style.setProperty("--accent", accentInput.value);
+    setAccent(accentInput.value);
 });
 
 saveBtn.addEventListener("click", async () => {
-    const position = document.querySelector<HTMLInputElement>('input[name="position"]:checked')?.value as TabSearchSettings["position"] | undefined;
-
     const settings: TabSearchSettings = {
         shortcut: currentShortcut,
         accent: accentInput.value,
-        position: position ?? DEFAULT_SETTINGS.position,
+        position: currentPosition,
     };
 
     await saveSettings(settings);
