@@ -8,6 +8,63 @@
             name="description"
             content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant."
         />
+        <link rel="canonical" href="https://abdullahwaqar.com/tabdrift" />
+
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Tabdrift" />
+        <meta
+            property="og:title"
+            content="Tabdrift, a fast keyboard-first tab switcher for Firefox"
+        />
+        <meta
+            property="og:description"
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant."
+        />
+        <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
+        <meta
+            property="og:image"
+            content="https://abdullahwaqar.com/tabdrift/showcase01.png"
+        />
+
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site" content="@abdullah_wc" />
+        <meta
+            name="twitter:title"
+            content="Tabdrift, a fast keyboard-first tab switcher for Firefox"
+        />
+        <meta
+            name="twitter:description"
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant."
+        />
+        <meta
+            name="twitter:image"
+            content="https://abdullahwaqar.com/tabdrift/showcase01.png"
+        />
+
+        <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png" />
+        <link rel="icon" type="image/png" sizes="16x16" href="./icon-16.png" />
+
+        <script type="application/ld+json">
+            {
+                "@context": "https://schema.org",
+                "@type": "SoftwareApplication",
+                "name": "Tabdrift",
+                "applicationCategory": "BrowserExtension",
+                "operatingSystem": "Firefox",
+                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant.",
+                "url": "https://abdullahwaqar.com/tabdrift",
+                "author": {
+                    "@type": "Person",
+                    "name": "Abdullah Waqar",
+                    "url": "https://www.abdullahwaqar.com/"
+                },
+                "offers": {
+                    "@type": "Offer",
+                    "price": "0",
+                    "priceCurrency": "USD"
+                }
+            }
+        </script>
         <style>
             :root {
                 color-scheme: dark;
@@ -131,21 +188,6 @@
                 gap: 16px;
                 flex-wrap: wrap;
             }
-            .btn-primary {
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                padding: 11px 18px;
-                border-radius: 8px;
-                background: var(--text);
-                color: var(--bg);
-                font-size: 14px;
-                font-weight: 600;
-                text-decoration: none;
-            }
-            .btn-primary svg {
-                flex-shrink: 0;
-            }
             .shortcut-hint {
                 display: flex;
                 align-items: center;
@@ -223,8 +265,29 @@
                 border-radius: 12px;
                 background: rgba(30, 32, 37, 0.92);
                 border: 1px solid var(--border-strong);
-                box-shadow: 0 24px 48px -16px rgba(0, 0, 0, 0.55);
+                box-shadow:
+                    0 24px 48px -16px rgba(0, 0, 0, 0.55),
+                    0 0 0 0 rgba(var(--accent-rgb), 0.4);
                 overflow: hidden;
+                animation: demo-pulse 2.6s ease-in-out 2;
+            }
+            @keyframes demo-pulse {
+                0%,
+                100% {
+                    box-shadow:
+                        0 24px 48px -16px rgba(0, 0, 0, 0.55),
+                        0 0 0 0 rgba(var(--accent-rgb), 0.4);
+                }
+                50% {
+                    box-shadow:
+                        0 24px 48px -16px rgba(0, 0, 0, 0.55),
+                        0 0 0 10px rgba(var(--accent-rgb), 0);
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .demo-card {
+                    animation: none;
+                }
             }
             .demo-input-wrap {
                 display: flex;
@@ -472,57 +535,26 @@
                 pointer-events: none;
             }
 
-            /* screenshots */
-            .shots {
-                display: grid;
-                grid-template-columns: 1fr;
-                gap: 16px;
-            }
-            @media (min-width: 760px) {
-                .shots {
-                    grid-template-columns: 1fr 1fr;
-                }
-            }
             .shot-frame {
                 border-radius: 12px;
+                overflow: hidden;
                 border: 1px solid var(--border);
                 background: var(--bg-raised);
-                overflow: hidden;
-            }
-            .shot-frame .shot-media {
-                position: relative;
-                height: 0;
-                padding-bottom: 62.5%;
-                background: var(--bg-raised-2);
-                overflow: hidden;
+                margin-bottom: 8px;
             }
             .shot-frame img {
-                position: absolute;
-                inset: 0;
                 display: block;
                 width: 100%;
-                height: 100%;
-                object-fit: cover;
-            }
-            .shot-placeholder {
-                position: absolute;
-                inset: 10px;
-                display: none;
-                align-items: center;
-                justify-content: center;
-                border: 1px dashed var(--border-strong);
-                border-radius: 8px;
-                font-family: var(--mono);
-                font-size: 11.5px;
-                color: var(--text-faint);
-                text-align: center;
-                padding: 12px;
+                height: auto;
             }
             .shot-caption {
                 padding: 12px 14px;
                 font-size: 12.5px;
                 color: var(--text-dim);
                 border-top: 1px solid var(--border);
+            }
+            .showcase {
+                padding-bottom: 56px;
             }
 
             /* footer */
@@ -610,23 +642,15 @@
                     </p>
                     <div class="cta-row">
                         <a
-                            class="btn-primary"
                             href="https://addons.mozilla.org/firefox/addon/tabdrift/"
                             target="_blank"
                             rel="noopener"
                         >
-                            <svg
-                                width="15"
-                                height="15"
-                                viewBox="0 0 24 24"
-                                aria-hidden="true"
-                            >
-                                <path
-                                    fill="currentColor"
-                                    d="M12 2 4 6v6c0 5 3.4 9.4 8 10 4.6-.6 8-5 8-10V6l-8-4Z"
-                                />
-                            </svg>
-                            Add to Firefox
+                            <img
+                                src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg"
+                                alt="Get the Add-on for Firefox"
+                                width="172"
+                            />
                         </a>
                         <div class="shortcut-hint">
                             <span class="keycap">Alt</span>+<span class="keycap"
@@ -682,6 +706,18 @@
                     </div>
                 </div>
             </section>
+
+            <div class="showcase">
+                <div class="shot-frame">
+                    <img
+                        src="./showcase01.png"
+                        alt="Tabdrift's search overlay open over a webpage"
+                    />
+                </div>
+                <div class="shot-caption">
+                    Tabdrift in the middle of a search
+                </div>
+            </div>
 
             <section class="block" id="how">
                 <div class="block-head">
@@ -773,58 +809,6 @@
                                 <div class="mini-line"></div>
                                 <div class="mini-card"></div>
                             </div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <section class="block" id="screenshots">
-                <div class="block-head">
-                    <h2>Screenshots</h2>
-                    <p>
-                        The overlay in the middle of a search, and the settings
-                        panel it's configured from.
-                    </p>
-                </div>
-                <div class="shots">
-                    <div class="shot-frame">
-                        <div class="shot-media">
-                            <img
-                                src="./screenshots/search.png"
-                                alt="Tabdrift's search overlay open over a webpage"
-                                loading="lazy"
-                                onerror="
-                                    this.style.display = 'none';
-                                    this.nextElementSibling.style.display =
-                                        'flex';
-                                "
-                            />
-                            <div class="shot-placeholder">
-                                screenshots/search.png
-                            </div>
-                        </div>
-                        <div class="shot-caption">
-                            Searching for a tab by title
-                        </div>
-                    </div>
-                    <div class="shot-frame">
-                        <div class="shot-media">
-                            <img
-                                src="./screenshots/settings.png"
-                                alt="Tabdrift's settings panel"
-                                loading="lazy"
-                                onerror="
-                                    this.style.display = 'none';
-                                    this.nextElementSibling.style.display =
-                                        'flex';
-                                "
-                            />
-                            <div class="shot-placeholder">
-                                screenshots/settings.png
-                            </div>
-                        </div>
-                        <div class="shot-caption">
-                            Shortcut, position, and accent color
                         </div>
                     </div>
                 </div>
@@ -1025,7 +1009,8 @@
                         filter(input.value);
                     }
                 });
-                render();
+                input.value = "n";
+                filter(input.value);
 
                 // accent swatches
                 var swatchGrid = document.getElementById("swatch-grid");
