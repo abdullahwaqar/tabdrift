@@ -2,7 +2,7 @@
     "name": "tabdrift",
     "description": "A fast, tab switcher",
     "private": true,
-    "version": "1.0.0",
+    "version": "1.0.1",
     "type": "module",
     "scripts": {
         "dev": "wxt",
