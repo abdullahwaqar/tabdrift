@@ -14,12 +14,11 @@ window, and switches to the one you pick with the arrow keys and enter.
 Default shortcut: `Alt+Shift+K`. Shortcut, overlay position, and accent
 color are all configurable from the settings page.
 
+[![Get the Add-on for Firefox](https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg)](https://addons.mozilla.org/firefox/addon/tabdrift/)
+
 ## Install
 
-Once published, Tabdrift will be available on
-[addons.mozilla.org](https://addons.mozilla.org/firefox/addon/tabdrift/).
-
-To run it from source instead:
+Click the badge above once the listing is live, or install from source:
 
 ```sh
 npm install
@@ -40,6 +39,12 @@ This opens a temporary Firefox profile with the extension already loaded.
 | `npm run compile`       | Type-check without emitting                |
 | `npm run lint`          | Lint with Biome                            |
 | `npm run lint:fix`      | Lint and auto-fix with Biome               |
+
+### Releasing a new version
+
+```sh
+npm version patch   # or minor / major
+```
 
 ## Project layout
 
