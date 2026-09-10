@@ -14,7 +14,7 @@ window, and switches to the one you pick with the arrow keys and enter.
 Default shortcut: `Alt+Shift+K`. Shortcut, overlay position, and accent
 color are all configurable from the settings page.
 
-[![Get the Add-on for Firefox](https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg)](https://addons.mozilla.org/firefox/addon/tabdrift/)
+[<img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the Add-on for Firefox" width="172">](https://addons.mozilla.org/firefox/addon/tabdrift/)
 
 ## Install
 
