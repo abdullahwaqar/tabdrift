@@ -2,7 +2,7 @@
     "name": "tabdrift",
     "description": "A fast, keyboard-first tab switcher for Firefox",
     "private": true,
-    "version": "1.0.1",
+    "version": "1.0.2",
     "type": "module",
     "license": "MIT",
     "author": "Abdullah Waqar (https://www.abdullahwaqar.com/)",
@@ -21,6 +21,9 @@
         "lint": "biome check .",
         "lint:fix": "biome check --write .",
         "version": "node scripts/sync-version.mjs && git add wxt.config.ts"
+    },
+    "dependencies": {
+        "fuse.js": "^7.0.0"
     },
     "devDependencies": {
         "@biomejs/biome": "^2.5.13",

@@ -29,6 +29,45 @@ export default defineBackground(() => {
             return true;
         }
 
+        if (message?.action === "searchHistory") {
+            const query = typeof message.query === "string" ? message.query : "";
+            browser.history
+                .search({ text: query, maxResults: 25, startTime: 0 })
+                .then((items) => {
+                    const results = items
+                        .filter((item) => !!item.url)
+                        .sort((a, b) => (b.lastVisitTime ?? 0) - (a.lastVisitTime ?? 0))
+                        .map((item) => ({
+                            id: item.id,
+                            title: item.title || item.url,
+                            url: item.url,
+                            lastVisitTime: item.lastVisitTime ?? 0,
+                        }));
+                    sendResponse(results);
+                })
+                .catch((err) => {
+                    console.error("[tabdrift] history search failed:", err);
+                    sendResponse([]);
+                });
+            return true;
+        }
+
+        if (message?.action === "openHistoryUrl") {
+            browser.tabs
+                .create({ url: message.url, active: true })
+                .then((tab) => {
+                    if (tab.windowId !== undefined) {
+                        return browser.windows.update(tab.windowId, { focused: true });
+                    }
+                })
+                .then(() => sendResponse({ success: true }))
+                .catch((err) => {
+                    console.error("[tabdrift] openHistoryUrl failed:", err);
+                    sendResponse({ success: false });
+                });
+            return true;
+        }
+
         if (message?.action === "openOptions") {
             browser.runtime.openOptionsPage();
         }

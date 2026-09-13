@@ -1,3 +1,4 @@
+import Fuse from "fuse.js";
 import { defineUnlistedScript } from "wxt/utils/define-unlisted-script";
 import type { TabSearchSettings } from "../lib/settings";
 import { getSettings, onSettingsChanged } from "../lib/settings";
@@ -8,6 +9,27 @@ interface TabInfo {
     url?: string;
     favIconUrl?: string;
 }
+
+interface HistoryInfo {
+    id: string;
+    title?: string;
+    url?: string;
+    lastVisitTime: number;
+}
+
+type ResultRow = { kind: "tab"; data: TabInfo } | { kind: "history"; data: HistoryInfo };
+
+const HISTORY_DEBOUNCE_MS = 120;
+const HISTORY_LIMIT = 6;
+
+const FUSE_OPTIONS = {
+    keys: [
+        { name: "title", weight: 0.6 },
+        { name: "url", weight: 0.4 },
+    ],
+    threshold: 0.4,
+    ignoreLocation: true,
+};
 
 export default defineUnlistedScript(() => {
     const win = window as unknown as { __tabSearchInjected?: boolean };
@@ -22,7 +44,10 @@ export default defineUnlistedScript(() => {
 
     let tabs: TabInfo[] = [];
     let filtered: TabInfo[] = [];
+    let historyResults: HistoryInfo[] = [];
     let selectedIndex = 0;
+    let historyTimer: ReturnType<typeof setTimeout> | null = null;
+    let historyRequestId = 0;
 
     let input: HTMLInputElement | null = null;
     let resultsEl: HTMLDivElement | null = null;
@@ -84,6 +109,7 @@ export default defineUnlistedScript(() => {
 
         tabs = await browser.runtime.sendMessage({ action: "getTabs" });
         filtered = [];
+        historyResults = [];
         selectedIndex = 0;
         renderResults();
 
@@ -97,6 +123,11 @@ export default defineUnlistedScript(() => {
         if (!host) {
             return;
         }
+        if (historyTimer) {
+            clearTimeout(historyTimer);
+            historyTimer = null;
+        }
+        historyRequestId++;
         shadow?.getElementById("scrim")?.classList.remove("open");
         cardEl?.classList.remove("open");
         setTimeout(() => {
@@ -107,10 +138,49 @@ export default defineUnlistedScript(() => {
     }
 
     function filterTabs(query: string) {
-        const q = query.trim().toLowerCase();
-        filtered = q ? tabs.filter((t) => t.title?.toLowerCase().includes(q) || t.url?.toLowerCase().includes(q)) : [];
+        const q = query.trim();
+        if (!q) {
+            filtered = [];
+            historyResults = [];
+            selectedIndex = 0;
+            renderResults();
+            return;
+        }
+
+        const tabFuse = new Fuse(tabs, FUSE_OPTIONS);
+        filtered = tabFuse.search(q).map((r) => r.item);
         selectedIndex = 0;
         renderResults();
+        queueHistorySearch(q);
+    }
+
+    function queueHistorySearch(query: string) {
+        if (historyTimer) {
+            clearTimeout(historyTimer);
+        }
+        const requestId = ++historyRequestId;
+        historyTimer = setTimeout(async () => {
+            const raw = (await browser.runtime.sendMessage({ action: "searchHistory", query })) as HistoryInfo[];
+            // Bail if the input changed (or overlay closed) while this was in flight.
+            if (requestId !== historyRequestId || input?.value.trim() !== query) {
+                return;
+            }
+
+            const openUrls = new Set(tabs.map((t) => t.url));
+            const candidates = raw.filter((h) => h.url && !openUrls.has(h.url));
+
+            const historyFuse = new Fuse(candidates, FUSE_OPTIONS);
+            historyResults = historyFuse
+                .search(query)
+                .slice(0, HISTORY_LIMIT)
+                .map((r) => r.item);
+
+            renderResults();
+        }, HISTORY_DEBOUNCE_MS);
+    }
+
+    function getRows(): ResultRow[] {
+        return [...filtered.map((data): ResultRow => ({ kind: "tab", data })), ...historyResults.map((data): ResultRow => ({ kind: "history", data }))];
     }
 
     function renderResults() {
@@ -119,51 +189,92 @@ export default defineUnlistedScript(() => {
         }
         resultsEl.innerHTML = "";
 
-        if (filtered.length === 0) {
+        const rows = getRows();
+
+        if (rows.length === 0) {
             const empty = document.createElement("div");
             empty.className = "empty";
-            empty.textContent = input?.value.trim() ? "No matching tabs" : "Start typing to search open tabs";
+            empty.textContent = input?.value.trim() ? "No matching tabs or history" : "Start typing to search";
             resultsEl.appendChild(empty);
             return;
         }
 
-        filtered.forEach((tab, i) => {
-            const row = document.createElement("div");
-            row.className = `row${i === selectedIndex ? " selected" : ""}`;
+        let historyHeaderShown = false;
+
+        rows.forEach((row, i) => {
+            if (row.kind === "history" && !historyHeaderShown) {
+                const header = document.createElement("div");
+                header.className = "section-header";
+                header.textContent = "From history";
+                resultsEl?.appendChild(header);
+                historyHeaderShown = true;
+            }
+
+            const el = document.createElement("div");
+            el.className = `row${i === selectedIndex ? " selected" : ""}`;
 
             const icon = document.createElement("img");
             icon.className = "favicon";
-            icon.src = tab.favIconUrl || "";
+            icon.src = row.kind === "tab" ? row.data.favIconUrl || "" : "";
             icon.addEventListener("error", () => (icon.style.visibility = "hidden"));
+            if (row.kind === "history") {
+                icon.style.visibility = "hidden";
+            }
 
             const text = document.createElement("div");
             text.className = "text";
 
             const title = document.createElement("div");
             title.className = "title";
-            title.textContent = tab.title || "Untitled";
+            title.textContent = row.data.title || "Untitled";
 
             const url = document.createElement("div");
             url.className = "url";
-            url.textContent = tab.url || "";
+            url.textContent = row.data.url || "";
 
             text.append(title, url);
-            row.append(icon, text);
-            row.addEventListener("click", () => switchToTab(tab.id));
-            row.addEventListener("mouseenter", () => {
-                selectedIndex = i;
+            el.append(icon, text);
+
+            if (row.kind === "history") {
+                const badge = document.createElement("span");
+                badge.className = "badge";
+                badge.textContent = "history";
+                el.append(badge);
+            }
+
+            el.addEventListener("click", () => activateRow(row));
+            const capturedIndex = i;
+            el.addEventListener("mouseenter", () => {
+                selectedIndex = capturedIndex;
                 renderResults();
             });
 
-            resultsEl?.appendChild(row);
+            resultsEl?.appendChild(el);
         });
 
-        resultsEl.children[selectedIndex]?.scrollIntoView({ block: "nearest" });
+        const domIndex = historyHeaderShown && selectedIndex >= filtered.length ? selectedIndex + 1 : selectedIndex;
+        resultsEl.children[domIndex]?.scrollIntoView({ block: "nearest" });
+    }
+
+    async function activateRow(row: ResultRow) {
+        if (row.kind === "tab") {
+            await switchToTab(row.data.id);
+        } else {
+            await openHistoryEntry(row.data.url);
+        }
     }
 
     async function switchToTab(tabId: number) {
         hideOverlay();
         await browser.runtime.sendMessage({ action: "switchTab", tabId });
+    }
+
+    async function openHistoryEntry(url: string | undefined) {
+        if (!url) {
+            return;
+        }
+        hideOverlay();
+        await browser.runtime.sendMessage({ action: "openHistoryUrl", url });
     }
 
     function handleKeydown(e: KeyboardEvent) {
@@ -172,13 +283,14 @@ export default defineUnlistedScript(() => {
             hideOverlay();
         } else if (e.key === "Enter") {
             e.preventDefault();
-            const target = filtered[selectedIndex];
+            const rows = getRows();
+            const target = rows[selectedIndex];
             if (target) {
-                switchToTab(target.id);
+                activateRow(target);
             }
         } else if (e.key === "ArrowDown") {
             e.preventDefault();
-            selectedIndex = Math.min(selectedIndex + 1, filtered.length - 1);
+            selectedIndex = Math.min(selectedIndex + 1, getRows().length - 1);
             renderResults();
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
@@ -207,7 +319,7 @@ const MARKUP = `
           <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm10 17-5.6-5.6" />
         </svg>
-        <input id="search-input" type="text" placeholder="Search open tabs..." autocomplete="off" spellcheck="false" />
+        <input id="search-input" type="text" placeholder="Search open tabs and history..." autocomplete="off" spellcheck="false" />
         <button id="settings-btn" title="Settings" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16">
             <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -322,6 +434,23 @@ const STYLES = `
   }
   .row:hover { background: rgba(255, 255, 255, 0.05); }
   .row.selected { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+
+  .section-header {
+    padding: 8px 20px 4px;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: rgba(255, 255, 255, 0.35);
+  }
+
+  .badge {
+    flex-shrink: 0;
+    font-size: 10.5px;
+    padding: 2px 7px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    color: rgba(255, 255, 255, 0.5);
+  }
 
   .favicon { width: 18px; height: 18px; flex-shrink: 0; border-radius: 3px; }
 

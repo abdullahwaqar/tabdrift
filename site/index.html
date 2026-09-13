@@ -6,7 +6,7 @@
         <title>Tabdrift, a fast keyboard-first tab switcher for Firefox</title>
         <meta
             name="description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open."
         />
         <link rel="canonical" href="https://abdullahwaqar.com/tabdrift" />
 
@@ -18,7 +18,7 @@
         />
         <meta
             property="og:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open."
         />
         <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
         <meta
@@ -34,7 +34,7 @@
         />
         <meta
             name="twitter:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open."
         />
         <meta
             name="twitter:image"
@@ -51,7 +51,7 @@
                 "name": "Tabdrift",
                 "applicationCategory": "BrowserExtension",
                 "operatingSystem": "Firefox",
-                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant.",
+                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open.",
                 "url": "https://abdullahwaqar.com/tabdrift",
                 "author": {
                     "@type": "Person",
@@ -352,6 +352,22 @@
                 font-size: 12.5px;
                 color: var(--text-faint);
             }
+            .demo-section-header {
+                padding: 8px 15px 4px;
+                font-size: 10px;
+                text-transform: uppercase;
+                letter-spacing: 0.06em;
+                color: var(--text-faint);
+            }
+            .demo-badge {
+                flex-shrink: 0;
+                font-size: 9.5px;
+                padding: 2px 7px;
+                border-radius: 999px;
+                background: rgba(255, 255, 255, 0.08);
+                color: var(--text-faint);
+                margin-left: auto;
+            }
             .demo-footer {
                 display: flex;
                 justify-content: space-between;
@@ -632,7 +648,8 @@
                         Tabdrift is a small Firefox extension that opens a
                         floating search over whatever page you're on. Press the
                         shortcut, type a few letters, hit enter, you're on the
-                        right tab.
+                        right tab. Nothing open matches? It searches your
+                        history and reopens the page in a new tab instead.
                     </p>
                     <div class="cta-row">
                         <a
@@ -683,7 +700,7 @@
                                 <input
                                     id="demo-input"
                                     type="text"
-                                    placeholder="Search open tabs..."
+                                    placeholder="Search open tabs and history..."
                                     autocomplete="off"
                                     spellcheck="false"
                                 />
@@ -717,8 +734,9 @@
                 <div class="block-head">
                     <h2>How it works</h2>
                     <p>
-                        No background tab-scanning, no page-content access until
-                        you actually ask for it.
+                        No background tab-scanning. History is only searched
+                        once you've typed something that doesn't match an open
+                        tab.
                     </p>
                 </div>
                 <div class="steps">
@@ -740,11 +758,25 @@
                             <p>
                                 Matches against tab titles and URLs as you type,
                                 across every window, not just the current one.
+                                Matching is fuzzy, so a typo or two still finds
+                                the right tab.
                             </p>
                         </div>
                     </div>
                     <div class="step">
                         <span class="step-index">03</span>
+                        <div>
+                            <h3>No match? Check history</h3>
+                            <p>
+                                If nothing open fits, Tabdrift searches your
+                                history and lists close matches underneath,
+                                marked "history". Pick one and it opens in a new
+                                tab.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="step">
+                        <span class="step-index">04</span>
                         <div>
                             <h3>Jump</h3>
                             <p>
@@ -844,7 +876,7 @@
         </footer>
 
         <script>
-            (function () {
+            (() => {
                 var TABS = [
                     {
                         title: "Design tokens — Figma file",
@@ -900,10 +932,29 @@
                     "#f97316",
                     "#6366f1",
                 ];
+                var HISTORY = [
+                    {
+                        title: "abdullahwaqar/tabdrift — GitHub",
+                        url: "github.com/abdullahwaqar/tabdrift",
+                    },
+                    {
+                        title: "History API — MDN",
+                        url: "developer.mozilla.org/history-api",
+                    },
+                    {
+                        title: "GitHub Actions: build matrix",
+                        url: "docs.github.com/actions/build-matrix",
+                    },
+                    {
+                        title: "Ergonomic keyboard shortcuts, Hacker News",
+                        url: "news.ycombinator.com/item?id=812345",
+                    },
+                ];
 
                 var input = document.getElementById("demo-input");
                 var results = document.getElementById("demo-results");
                 var filtered = [];
+                var filteredHistory = [];
                 var selectedIndex = 0;
 
                 function faviconColor(title) {
@@ -925,16 +976,18 @@
 
                 function render() {
                     results.innerHTML = "";
-                    if (filtered.length === 0) {
+                    if (filtered.length === 0 && filteredHistory.length === 0) {
                         var empty = document.createElement("div");
                         empty.className = "demo-empty";
                         empty.textContent = input.value.trim()
-                            ? "No matching tabs"
-                            : "Start typing to search open tabs";
+                            ? "No matching tabs or history"
+                            : "Start typing to search";
                         results.appendChild(empty);
                         return;
                     }
-                    filtered.forEach(function (tab, i) {
+                    var rowCount = 0;
+                    filtered.forEach((tab) => {
+                        var i = rowCount++;
                         var row = document.createElement("div");
                         row.className =
                             "demo-row" +
@@ -954,7 +1007,36 @@
 
                         row.appendChild(icon);
                         row.appendChild(title);
-                        row.addEventListener("mouseenter", function () {
+                        row.addEventListener("mouseenter", () => {
+                            selectedIndex = i;
+                            render();
+                        });
+                        results.appendChild(row);
+                    });
+                    if (filteredHistory.length > 0) {
+                        var header = document.createElement("div");
+                        header.className = "demo-section-header";
+                        header.textContent = "From history";
+                        results.appendChild(header);
+                    }
+                    filteredHistory.forEach((page) => {
+                        var i = rowCount++;
+                        var row = document.createElement("div");
+                        row.className =
+                            "demo-row" +
+                            (i === selectedIndex ? " selected" : "");
+
+                        var title = document.createElement("div");
+                        title.className = "title";
+                        title.textContent = page.title;
+
+                        var badge = document.createElement("span");
+                        badge.className = "demo-badge";
+                        badge.textContent = "history";
+
+                        row.appendChild(title);
+                        row.appendChild(badge);
+                        row.addEventListener("mouseenter", () => {
                             selectedIndex = i;
                             render();
                         });
@@ -965,55 +1047,63 @@
                 function filter(query) {
                     var q = query.trim().toLowerCase();
                     filtered = q
-                        ? TABS.filter(function (t) {
-                              return (
+                        ? TABS.filter(
+                              (t) =>
                                   t.title.toLowerCase().indexOf(q) !== -1 ||
-                                  t.url.toLowerCase().indexOf(q) !== -1
-                              );
-                          })
+                                  t.url.toLowerCase().indexOf(q) !== -1,
+                          )
+                        : [];
+                    filteredHistory = q
+                        ? HISTORY.filter(
+                              (h) =>
+                                  h.title.toLowerCase().indexOf(q) !== -1 ||
+                                  h.url.toLowerCase().indexOf(q) !== -1,
+                          )
                         : [];
                     selectedIndex = 0;
                     render();
                 }
 
-                input.addEventListener("input", function () {
+                input.addEventListener("input", () => {
                     filter(input.value);
                 });
-                input.addEventListener("keydown", function (e) {
+                input.addEventListener("keydown", (e) => {
+                    var total = filtered.length + filteredHistory.length;
                     if (e.key === "ArrowDown") {
                         e.preventDefault();
-                        selectedIndex = Math.min(
-                            selectedIndex + 1,
-                            filtered.length - 1,
-                        );
+                        selectedIndex = Math.min(selectedIndex + 1, total - 1);
                         render();
                     } else if (e.key === "ArrowUp") {
                         e.preventDefault();
                         selectedIndex = Math.max(selectedIndex - 1, 0);
                         render();
-                    } else if (e.key === "Enter" && filtered.length) {
+                    } else if (e.key === "Enter" && total) {
                         e.preventDefault();
-                        input.value = filtered[selectedIndex].title;
+                        var picked =
+                            selectedIndex < filtered.length
+                                ? filtered[selectedIndex]
+                                : filteredHistory[
+                                      selectedIndex - filtered.length
+                                  ];
+                        input.value = picked.title;
                         filter(input.value);
                     }
                 });
-                input.value = "n";
+                input.value = "fi";
                 filter(input.value);
 
                 // accent swatches
                 var swatchGrid = document.getElementById("swatch-grid");
-                SWATCH_COLORS.forEach(function (hex, i) {
+                SWATCH_COLORS.forEach((hex, i) => {
                     var btn = document.createElement("button");
                     btn.className = "swatch" + (i === 0 ? " active" : "");
                     btn.type = "button";
                     btn.style.background = hex;
                     btn.setAttribute("aria-label", hex);
-                    btn.addEventListener("click", function () {
-                        document
-                            .querySelectorAll(".swatch")
-                            .forEach(function (s) {
-                                s.classList.remove("active");
-                            });
+                    btn.addEventListener("click", () => {
+                        document.querySelectorAll(".swatch").forEach((s) => {
+                            s.classList.remove("active");
+                        });
                         btn.classList.add("active");
                         var rgb = hexToRgb(hex);
                         document.documentElement.style.setProperty(
@@ -1037,13 +1127,11 @@
 
                 // position preview
                 var miniBody = document.getElementById("mini-body");
-                document
-                    .querySelectorAll(".mini-zone")
-                    .forEach(function (zone) {
-                        zone.addEventListener("click", function () {
-                            miniBody.dataset.position = zone.dataset.position;
-                        });
+                document.querySelectorAll(".mini-zone").forEach((zone) => {
+                    zone.addEventListener("click", () => {
+                        miniBody.dataset.position = zone.dataset.position;
                     });
+                });
             })();
         </script>
     </body>

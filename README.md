@@ -10,6 +10,13 @@ few letters, jump straight to the tab you meant.
 Tabdrift opens a floating search overlay over whatever page you're on.
 It filters your open tabs by title or URL as you type, across every
 window, and switches to the one you pick with the arrow keys and enter.
+Matching is fuzzy (via Fuse.js), so typos and out-of-order words still
+find the right tab.
+
+If nothing in your open tabs matches, Tabdrift also searches your
+browsing history in the background and lists close matches underneath,
+marked "history". Pick one and it opens in a new tab. This needs the
+`history` permission; searches never leave your machine.
 
 Default shortcut: `Alt+Shift+K`. Shortcut, overlay position, and accent
 color are all configurable from the settings page.
