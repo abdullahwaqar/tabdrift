@@ -1,7 +1,10 @@
 import Fuse from "fuse.js";
 import { defineUnlistedScript } from "wxt/utils/define-unlisted-script";
+import { copyText } from "../lib/clipboard";
 import type { TabSearchSettings } from "../lib/settings";
 import { getSettings, onSettingsChanged } from "../lib/settings";
+import type { UtilAction } from "../lib/utils";
+import { buildUtilities } from "../lib/utils";
 
 interface TabInfo {
     id: number;
@@ -17,10 +20,12 @@ interface HistoryInfo {
     lastVisitTime: number;
 }
 
-type ResultRow = { kind: "tab"; data: TabInfo } | { kind: "history"; data: HistoryInfo };
+type ResultRow = { kind: "util"; data: UtilAction } | { kind: "tab"; data: TabInfo } | { kind: "history"; data: HistoryInfo };
 
 const HISTORY_DEBOUNCE_MS = 120;
 const HISTORY_LIMIT = 6;
+const TOAST_MS = 1800;
+const TOAST_MAX_CHARS = 56;
 
 const FUSE_OPTIONS = {
     keys: [
@@ -45,6 +50,7 @@ export default defineUnlistedScript(() => {
     let tabs: TabInfo[] = [];
     let filtered: TabInfo[] = [];
     let historyResults: HistoryInfo[] = [];
+    let utilities: UtilAction[] = [];
     let selectedIndex = 0;
     let historyTimer: ReturnType<typeof setTimeout> | null = null;
     let historyRequestId = 0;
@@ -52,6 +58,11 @@ export default defineUnlistedScript(() => {
     let input: HTMLInputElement | null = null;
     let resultsEl: HTMLDivElement | null = null;
     let cardEl: HTMLDivElement | null = null;
+    let hintEl: HTMLSpanElement | null = null;
+
+    let toastEl: HTMLDivElement | null = null;
+    let toastHost: HTMLDivElement | null = null;
+    let toastTimer: ReturnType<typeof setTimeout> | null = null;
 
     onSettingsChanged((next) => {
         settings = next;
@@ -76,6 +87,7 @@ export default defineUnlistedScript(() => {
         cardEl = shadow.getElementById("card") as HTMLDivElement;
         input = shadow.getElementById("search-input") as HTMLInputElement;
         resultsEl = shadow.getElementById("results") as HTMLDivElement;
+        hintEl = shadow.getElementById("hint") as HTMLSpanElement;
         const scrim = shadow.getElementById("scrim") as HTMLDivElement;
         const settingsBtn = shadow.getElementById("settings-btn") as HTMLButtonElement;
 
@@ -83,6 +95,7 @@ export default defineUnlistedScript(() => {
             browser.runtime.sendMessage({ action: "openOptions" });
         });
         input.addEventListener("input", () => filterTabs(input?.value ?? ""));
+        input.addEventListener("paste", () => setTimeout(maybeQuickCopy, 0));
         scrim.addEventListener("click", hideOverlay);
         shadow.addEventListener("keydown", handleKeydown as EventListener);
     }
@@ -110,6 +123,7 @@ export default defineUnlistedScript(() => {
         tabs = await browser.runtime.sendMessage({ action: "getTabs" });
         filtered = [];
         historyResults = [];
+        utilities = [];
         selectedIndex = 0;
         renderResults();
 
@@ -142,6 +156,7 @@ export default defineUnlistedScript(() => {
         if (!q) {
             filtered = [];
             historyResults = [];
+            utilities = [];
             selectedIndex = 0;
             renderResults();
             return;
@@ -149,6 +164,7 @@ export default defineUnlistedScript(() => {
 
         const tabFuse = new Fuse(tabs, FUSE_OPTIONS);
         filtered = tabFuse.search(q).map((r) => r.item);
+        utilities = buildUtilities(q, tabs);
         selectedIndex = 0;
         renderResults();
         queueHistorySearch(q);
@@ -180,7 +196,90 @@ export default defineUnlistedScript(() => {
     }
 
     function getRows(): ResultRow[] {
-        return [...filtered.map((data): ResultRow => ({ kind: "tab", data })), ...historyResults.map((data): ResultRow => ({ kind: "history", data }))];
+        return [
+            ...utilities.map((data): ResultRow => ({ kind: "util", data })),
+            ...filtered.map((data): ResultRow => ({ kind: "tab", data })),
+            ...historyResults.map((data): ResultRow => ({ kind: "history", data })),
+        ];
+    }
+
+    function sectionTitle(kind: ResultRow["kind"]): string | null {
+        if (kind === "util") {
+            return "Utilities";
+        }
+        if (kind === "history") {
+            return "From history";
+        }
+        // Tabs only need a label when something else sits above them.
+        return utilities.length > 0 ? "Open tabs" : null;
+    }
+
+    function updateHint(row: ResultRow | undefined) {
+        if (!hintEl) {
+            return;
+        }
+        let verb = "switch";
+        if (row?.kind === "util") {
+            verb = row.data.action === "copy" ? "copy" : "open";
+        }
+        hintEl.textContent = `\u2191\u2193 navigate \u00a0\u2022\u00a0 Enter ${verb} \u00a0\u2022\u00a0 Esc close`;
+    }
+
+    function buildUtilRow(action: UtilAction): HTMLElement[] {
+        const icon = document.createElement("span");
+        icon.className = "util-icon";
+        icon.innerHTML = action.action === "copy" ? COPY_ICON : OPEN_ICON;
+
+        const text = document.createElement("div");
+        text.className = "text";
+
+        const title = document.createElement("div");
+        title.className = "title mono";
+        title.textContent = action.display ?? action.value.replace(/\s*\n\s*/g, ", ");
+
+        const label = document.createElement("div");
+        label.className = "url";
+        label.textContent = action.label;
+
+        text.append(title, label);
+
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = action.action;
+
+        return [icon, text, badge];
+    }
+
+    function buildEntryRow(row: Exclude<ResultRow, { kind: "util" }>): HTMLElement[] {
+        const icon = document.createElement("img");
+        icon.className = "favicon";
+        icon.src = row.kind === "tab" ? row.data.favIconUrl || "" : "";
+        icon.addEventListener("error", () => (icon.style.visibility = "hidden"));
+        if (row.kind === "history") {
+            icon.style.visibility = "hidden";
+        }
+
+        const text = document.createElement("div");
+        text.className = "text";
+
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = row.data.title || "Untitled";
+
+        const url = document.createElement("div");
+        url.className = "url";
+        url.textContent = row.data.url || "";
+
+        text.append(title, url);
+        const parts: HTMLElement[] = [icon, text];
+
+        if (row.kind === "history") {
+            const badge = document.createElement("span");
+            badge.className = "badge";
+            badge.textContent = "history";
+            parts.push(badge);
+        }
+        return parts;
     }
 
     function renderResults() {
@@ -190,57 +289,34 @@ export default defineUnlistedScript(() => {
         resultsEl.innerHTML = "";
 
         const rows = getRows();
+        updateHint(rows[selectedIndex]);
 
         if (rows.length === 0) {
             const empty = document.createElement("div");
             empty.className = "empty";
-            empty.textContent = input?.value.trim() ? "No matching tabs or history" : "Start typing to search";
+            empty.textContent = input?.value.trim() ? "No matching tabs or history" : "Start typing, or paste an email or link";
             resultsEl.appendChild(empty);
             return;
         }
 
-        let historyHeaderShown = false;
+        const rowEls: HTMLElement[] = [];
+        let lastKind: ResultRow["kind"] | null = null;
 
         rows.forEach((row, i) => {
-            if (row.kind === "history" && !historyHeaderShown) {
-                const header = document.createElement("div");
-                header.className = "section-header";
-                header.textContent = "From history";
-                resultsEl?.appendChild(header);
-                historyHeaderShown = true;
+            if (row.kind !== lastKind) {
+                const title = sectionTitle(row.kind);
+                if (title) {
+                    const header = document.createElement("div");
+                    header.className = "section-header";
+                    header.textContent = title;
+                    resultsEl?.appendChild(header);
+                }
+                lastKind = row.kind;
             }
 
             const el = document.createElement("div");
             el.className = `row${i === selectedIndex ? " selected" : ""}`;
-
-            const icon = document.createElement("img");
-            icon.className = "favicon";
-            icon.src = row.kind === "tab" ? row.data.favIconUrl || "" : "";
-            icon.addEventListener("error", () => (icon.style.visibility = "hidden"));
-            if (row.kind === "history") {
-                icon.style.visibility = "hidden";
-            }
-
-            const text = document.createElement("div");
-            text.className = "text";
-
-            const title = document.createElement("div");
-            title.className = "title";
-            title.textContent = row.data.title || "Untitled";
-
-            const url = document.createElement("div");
-            url.className = "url";
-            url.textContent = row.data.url || "";
-
-            text.append(title, url);
-            el.append(icon, text);
-
-            if (row.kind === "history") {
-                const badge = document.createElement("span");
-                badge.className = "badge";
-                badge.textContent = "history";
-                el.append(badge);
-            }
+            el.append(...(row.kind === "util" ? buildUtilRow(row.data) : buildEntryRow(row)));
 
             el.addEventListener("click", () => activateRow(row));
             const capturedIndex = i;
@@ -250,18 +326,71 @@ export default defineUnlistedScript(() => {
             });
 
             resultsEl?.appendChild(el);
+            rowEls.push(el);
         });
 
-        const domIndex = historyHeaderShown && selectedIndex >= filtered.length ? selectedIndex + 1 : selectedIndex;
-        resultsEl.children[domIndex]?.scrollIntoView({ block: "nearest" });
+        rowEls[selectedIndex]?.scrollIntoView({ block: "nearest" });
     }
 
     async function activateRow(row: ResultRow) {
-        if (row.kind === "tab") {
+        if (row.kind === "util") {
+            await runUtility(row.data);
+        } else if (row.kind === "tab") {
             await switchToTab(row.data.id);
         } else {
             await openHistoryEntry(row.data.url);
         }
+    }
+
+    async function runUtility(action: UtilAction) {
+        if (action.action === "open") {
+            hideOverlay();
+            await browser.runtime.sendMessage({ action: "openHistoryUrl", url: action.value });
+            return;
+        }
+
+        const ok = await copyText(action.value);
+        hideOverlay();
+        const shown = action.display ?? action.value.replace(/\s*\n\s*/g, ", ");
+        const short = shown.length > TOAST_MAX_CHARS ? `${shown.slice(0, TOAST_MAX_CHARS - 1)}\u2026` : shown;
+        showToast(ok ? `Copied ${short}` : "Couldn't copy to the clipboard");
+    }
+
+    /** Quick copy: paste an email or link and its main result goes straight to the clipboard. */
+    function maybeQuickCopy() {
+        if (!settings?.quickCopy || !input) {
+            return;
+        }
+        const [primary] = buildUtilities(input.value, tabs);
+        if (primary && primary.action === "copy") {
+            void runUtility(primary);
+        }
+    }
+
+    function showToast(text: string) {
+        if (!toastHost) {
+            toastHost = document.createElement("div");
+            toastHost.id = "tabdrift-toast-host";
+            toastHost.style.cssText = "position: fixed; left: 50%; bottom: 32px; transform: translateX(-50%); z-index: 2147483647; pointer-events: none;";
+            const root = toastHost.attachShadow({ mode: "closed" });
+            root.innerHTML = `${TOAST_STYLES}<div id="toast" role="status"></div>`;
+            toastEl = root.getElementById("toast") as HTMLDivElement;
+            document.documentElement.appendChild(toastHost);
+        }
+        if (!toastEl) {
+            return;
+        }
+        toastEl.style.setProperty("--accent", settings?.accent ?? "#3b82f6");
+        toastEl.textContent = text;
+        // Force a reflow so the fade-in replays if a toast is already showing.
+        toastEl.classList.remove("show");
+        void toastEl.offsetWidth;
+        toastEl.classList.add("show");
+
+        if (toastTimer) {
+            clearTimeout(toastTimer);
+        }
+        toastTimer = setTimeout(() => toastEl?.classList.remove("show"), TOAST_MS);
     }
 
     async function switchToTab(tabId: number) {
@@ -306,9 +435,40 @@ export default defineUnlistedScript(() => {
             } else {
                 showOverlay();
             }
+        } else if (message?.action === "showToast" && typeof message.text === "string") {
+            showToast(message.text);
         }
     });
 });
+
+const COPY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`;
+const OPEN_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>`;
+
+const TOAST_STYLES = `
+<style>
+  #toast {
+    --accent: #3b82f6;
+    padding: 10px 16px;
+    border-radius: 12px;
+    background: rgba(30, 30, 34, 0.86);
+    backdrop-filter: blur(20px) saturate(160%);
+    -webkit-backdrop-filter: blur(20px) saturate(160%);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: 0 12px 32px -8px rgba(0, 0, 0, 0.5);
+    color: #f1f1f3;
+    font: 500 13px/1.3 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 80vw;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    opacity: 0;
+    transform: translateY(6px);
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  #toast::before { content: "\\2713"; color: var(--accent); font-weight: 700; margin-right: 8px; }
+  #toast.show { opacity: 1; transform: translateY(0); }
+</style>
+`;
 
 const MARKUP = `
   <div id="scrim"></div>
@@ -319,7 +479,7 @@ const MARKUP = `
           <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
             d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm10 17-5.6-5.6" />
         </svg>
-        <input id="search-input" type="text" placeholder="Search open tabs and history..." autocomplete="off" spellcheck="false" />
+        <input id="search-input" type="text" placeholder="Search tabs, or paste an email or link..." autocomplete="off" spellcheck="false" />
         <button id="settings-btn" title="Settings" type="button">
           <svg viewBox="0 0 24 24" width="16" height="16">
             <path fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -329,7 +489,7 @@ const MARKUP = `
       </div>
       <div id="results"></div>
       <div id="footer">
-        <span>&uarr;&darr; navigate &nbsp;&bull;&nbsp; Enter switch &nbsp;&bull;&nbsp; Esc close</span>
+        <span id="hint"></span>
         <span id="brand">Tabdrift</span>
       </div>
     </div>
@@ -453,6 +613,21 @@ const STYLES = `
   }
 
   .favicon { width: 18px; height: 18px; flex-shrink: 0; border-radius: 3px; }
+
+  .util-icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+  }
+  .util-icon svg { width: 16px; height: 16px; }
+  .title.mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+  }
 
   .text { flex: 1; min-width: 0; }
   .title {

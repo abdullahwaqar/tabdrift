@@ -6,7 +6,7 @@
         <title>Tabdrift, a fast keyboard-first tab switcher for Firefox</title>
         <meta
             name="description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL."
         />
         <link rel="canonical" href="https://abdullahwaqar.com/tabdrift" />
 
@@ -18,7 +18,7 @@
         />
         <meta
             property="og:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL."
         />
         <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
         <meta
@@ -34,7 +34,7 @@
         />
         <meta
             name="twitter:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL."
         />
         <meta
             name="twitter:image"
@@ -51,7 +51,7 @@
                 "name": "Tabdrift",
                 "applicationCategory": "BrowserExtension",
                 "operatingSystem": "Firefox",
-                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open.",
+                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL.",
                 "url": "https://abdullahwaqar.com/tabdrift",
                 "author": {
                     "@type": "Person",
@@ -144,6 +144,11 @@
             }
             .nav-links a:hover {
                 color: var(--text);
+            }
+            @media (max-width: 520px) {
+                .nav-links a:not(.nav-cta) {
+                    display: none;
+                }
             }
             .nav-cta {
                 padding: 8px 14px;
@@ -381,6 +386,62 @@
                 font-weight: 600;
             }
 
+            .demo-col {
+                min-width: 0;
+            }
+            .demo-chips {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 8px;
+                margin-top: 14px;
+                font-size: 12px;
+                color: var(--text-faint);
+            }
+            .demo-chip {
+                font: inherit;
+                font-size: 12px;
+                padding: 6px 11px;
+                border-radius: 999px;
+                background: var(--bg-raised-2);
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                cursor: pointer;
+            }
+            .demo-chip:hover {
+                color: var(--text);
+                border-color: var(--border-strong);
+            }
+            .demo-row .util-icon {
+                width: 18px;
+                height: 18px;
+                flex-shrink: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                color: var(--accent);
+            }
+            .demo-row .util-icon svg {
+                width: 15px;
+                height: 15px;
+            }
+            .demo-row .text {
+                flex: 1;
+                min-width: 0;
+            }
+            .demo-row .title.mono {
+                font-family: var(--mono);
+                font-size: 12px;
+            }
+            .demo-row .sub {
+                margin-top: 2px;
+                font-size: 10.5px;
+                color: var(--text-faint);
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }
+
             /* sections */
             section.block {
                 padding: 56px 0;
@@ -435,6 +496,87 @@
                 line-height: 1.6;
                 color: var(--text-dim);
                 max-width: 56ch;
+            }
+
+            /* utilities */
+            .util-grid {
+                display: grid;
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            @media (min-width: 760px) {
+                .util-grid {
+                    grid-template-columns: repeat(3, 1fr);
+                }
+            }
+            .util-card {
+                display: flex;
+                flex-direction: column;
+                min-width: 0;
+                padding: 20px;
+                border-radius: 12px;
+                background: var(--bg-raised);
+                border: 1px solid var(--border);
+            }
+            .util-card h3 {
+                margin: 0 0 6px;
+                font-size: 14.5px;
+                font-weight: 600;
+            }
+            .util-card p {
+                margin: 0 0 16px;
+                font-size: 13px;
+                line-height: 1.6;
+                color: var(--text-dim);
+            }
+            .util-card code {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--text);
+            }
+            .code-block {
+                margin-top: auto;
+                padding: 10px 12px;
+                border-radius: 8px;
+                background: var(--bg);
+                border: 1px solid var(--border);
+                font-family: var(--mono);
+                font-size: 11.5px;
+                line-height: 1.7;
+                white-space: nowrap;
+                overflow-x: auto;
+                color: var(--text-dim);
+            }
+            .code-block .strike {
+                color: var(--text-faint);
+                text-decoration: line-through;
+            }
+            .code-block .keep {
+                color: var(--text);
+            }
+            .code-block .hl {
+                color: var(--accent);
+            }
+            .key-row {
+                margin-top: auto;
+                display: flex;
+                flex-direction: column;
+                gap: 8px;
+                font-size: 12.5px;
+                color: var(--text-dim);
+            }
+            .key-row div {
+                display: flex;
+                align-items: center;
+                flex-wrap: wrap;
+                gap: 6px;
+            }
+            .util-note {
+                margin: 24px 0 0;
+                max-width: 68ch;
+                font-size: 13px;
+                line-height: 1.65;
+                color: var(--text-dim);
             }
 
             /* customize */
@@ -622,6 +764,7 @@
                 </a>
                 <div class="nav-links">
                     <a href="#how">How it works</a>
+                    <a href="#utilities">Utilities</a>
                     <a href="#customize">Customize</a>
                     <a
                         href="https://github.com/abdullahwaqar/tabdrift"
@@ -649,7 +792,9 @@
                         floating search over whatever page you're on. Press the
                         shortcut, type a few letters, hit enter, you're on the
                         right tab. Nothing open matches? It searches your
-                        history and reopens the page in a new tab instead.
+                        history and reopens the page in a new tab instead. Paste
+                        an email or a link and it hands you the domain or a
+                        tracker-free URL.
                     </p>
                     <div class="cta-row">
                         <a
@@ -672,48 +817,73 @@
                     </div>
                 </div>
 
-                <div class="demo-browser">
-                    <div class="demo-chrome">
-                        <span></span><span></span><span></span>
-                    </div>
-                    <div class="demo-page">
-                        <div class="demo-page-line"></div>
-                        <div class="demo-page-line"></div>
-                        <div class="demo-page-line"></div>
+                <div class="demo-col">
+                    <div class="demo-browser">
+                        <div class="demo-chrome">
+                            <span></span><span></span><span></span>
+                        </div>
+                        <div class="demo-page">
+                            <div class="demo-page-line"></div>
+                            <div class="demo-page-line"></div>
+                            <div class="demo-page-line"></div>
 
-                        <div class="demo-card">
-                            <div class="demo-input-wrap">
-                                <svg
-                                    viewBox="0 0 24 24"
-                                    width="16"
-                                    height="16"
-                                    aria-hidden="true"
-                                >
-                                    <path
-                                        fill="none"
-                                        stroke="currentColor"
-                                        stroke-width="2"
-                                        stroke-linecap="round"
-                                        d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm10 17-5.6-5.6"
+                            <div class="demo-card">
+                                <div class="demo-input-wrap">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        width="16"
+                                        height="16"
+                                        aria-hidden="true"
+                                    >
+                                        <path
+                                            fill="none"
+                                            stroke="currentColor"
+                                            stroke-width="2"
+                                            stroke-linecap="round"
+                                            d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm10 17-5.6-5.6"
+                                        />
+                                    </svg>
+                                    <input
+                                        id="demo-input"
+                                        type="text"
+                                        placeholder="Search tabs, or paste an email or link..."
+                                        autocomplete="off"
+                                        spellcheck="false"
                                     />
-                                </svg>
-                                <input
-                                    id="demo-input"
-                                    type="text"
-                                    placeholder="Search open tabs and history..."
-                                    autocomplete="off"
-                                    spellcheck="false"
-                                />
-                            </div>
-                            <div id="demo-results" class="demo-results"></div>
-                            <div class="demo-footer">
-                                <span
-                                    >&uarr;&darr; navigate &nbsp;&bull;&nbsp;
-                                    Enter switch</span
-                                >
-                                <b>Tabdrift</b>
+                                </div>
+                                <div
+                                    id="demo-results"
+                                    class="demo-results"
+                                ></div>
+                                <div class="demo-footer">
+                                    <span id="demo-hint"
+                                        >&uarr;&darr; navigate
+                                        &nbsp;&bull;&nbsp; Enter switch</span
+                                    >
+                                    <b>Tabdrift</b>
+                                </div>
                             </div>
                         </div>
+                    </div>
+                    <div class="demo-chips">
+                        <span>Try it:</span>
+                        <button
+                            class="demo-chip"
+                            type="button"
+                            data-value="Sara Ahmed &lt;sara@mail.acme.co.uk&gt;"
+                        >
+                            an email
+                        </button>
+                        <button
+                            class="demo-chip"
+                            type="button"
+                            data-value="https://example.com/post?utm_source=newsletter&amp;id=7&amp;fbclid=zzz"
+                        >
+                            a messy link
+                        </button>
+                        <button class="demo-chip" type="button" data-value="fi">
+                            a tab search
+                        </button>
                     </div>
                 </div>
             </section>
@@ -789,12 +959,90 @@
                 </div>
             </section>
 
+            <section class="block" id="utilities">
+                <div class="block-head">
+                    <h2>Emails and links</h2>
+                    <p>
+                        Paste an email or a link into the overlay and a
+                        Utilities section shows up above your tabs. The top row
+                        is already selected, so enter copies it.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>Email to domain</h3>
+                        <p>
+                            Get the domain from an email address. It handles
+                            <code>Name &lt;a@b.com&gt;</code>,
+                            <code>mailto:</code> links and pasted lists (unique
+                            domains, one per line). The root domain is worked
+                            out for endings like co.uk and co.ae.
+                        </p>
+                        <div class="code-block">
+                            <span class="strike"
+                                >Sara Ahmed &lt;sara@mail.acme.co.uk&gt;</span
+                            ><br />
+                            <span class="keep">mail.acme.co.uk</span><br />
+                            <span class="hl">acme.co.uk</span> (root domain)
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Links without the tracking</h3>
+                        <p>
+                            Strips <code>utm_*</code>, <code>fbclid</code>,
+                            <code>gclid</code>, <code>msclkid</code> and similar
+                            click ids, unwraps redirect links from Google,
+                            Outlook Safe Links, Facebook and LinkedIn, and
+                            shortens Amazon product links. Parameters that
+                            aren't tracking are left exactly as they were.
+                        </p>
+                        <div class="code-block">
+                            <span class="strike"
+                                >example.com/post?utm_source=news&amp;id=7&amp;fbclid=zzz</span
+                            ><br />
+                            <span class="keep">example.com/post?id=7</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Copy without opening anything</h3>
+                        <p>
+                            Copy the current page's clean link with a shortcut,
+                            or from the right-click menu on any link. With Quick
+                            copy on, pasting into the overlay copies the result
+                            straight away.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Alt</span>+<span
+                                    class="keycap"
+                                    >Shift</span
+                                >+<span class="keycap">C</span>
+                                <span>copy this page's clean link</span>
+                            </div>
+                            <div>
+                                <span>Right-click a link, then</span>
+                                <span class="keycap">Copy clean link</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    A pasted link also gets a Markdown link, a version without
+                    query and hash, its domain and root domain, an
+                    open-in-new-tab row and a Wayback Machine lookup. Everything
+                    runs locally and nothing leaves your browser. Copying uses
+                    the clipboardWrite permission, and the right-click item uses
+                    contextMenus.
+                </p>
+            </section>
+
             <section class="block" id="customize">
                 <div class="block-head">
                     <h2>Make it yours</h2>
                     <p>
                         Pick an accent color and where the overlay sits on
-                        screen, right from the same settings panel.
+                        screen, and switch Quick copy on or off, right from the
+                        same settings panel.
                     </p>
                 </div>
                 <div class="customize-grid">
@@ -951,18 +1199,22 @@
                     },
                 ];
 
-                var input = document.getElementById("demo-input");
-                var results = document.getElementById("demo-results");
-                var filtered = [];
-                var filteredHistory = [];
-                var selectedIndex = 0;
+                const input = document.getElementById("demo-input");
+                const results = document.getElementById("demo-results");
+                const hint = document.getElementById("demo-hint");
+                let filtered = [];
+                let filteredHistory = [];
+                let utils = [];
+                let rowEls = [];
+                let selectedIndex = 0;
+                let hintTimer = null;
 
-                function faviconColor(title) {
-                    var hash = 0;
-                    for (var i = 0; i < title.length; i++) {
+                const faviconColor = (title) => {
+                    let hash = 0;
+                    for (let i = 0; i < title.length; i++) {
                         hash = (hash * 31 + title.charCodeAt(i)) >>> 0;
                     }
-                    var hues = [
+                    const hues = [
                         "#9ca3af",
                         "#93c5fd",
                         "#fca5a5",
@@ -972,80 +1224,350 @@
                         "#f9a8d4",
                     ];
                     return hues[hash % hues.length];
-                }
+                };
 
-                function render() {
+                // A small version of what the extension does with emails and links.
+                const TRACKING_PARAMS = [
+                    "fbclid",
+                    "gclid",
+                    "gclsrc",
+                    "dclid",
+                    "gbraid",
+                    "wbraid",
+                    "msclkid",
+                    "twclid",
+                    "ttclid",
+                    "igshid",
+                    "igsh",
+                    "mc_cid",
+                    "mc_eid",
+                    "mkt_tok",
+                    "_hsenc",
+                    "_hsmi",
+                    "yclid",
+                    "_ga",
+                    "_gl",
+                    "mibextid",
+                    "srsltid",
+                    "li_fat_id",
+                ];
+                const TRACKING_PREFIXES = [
+                    "utm_",
+                    "hsa_",
+                    "mtm_",
+                    "pk_",
+                    "piwik_",
+                    "matomo_",
+                    "pf_rd_",
+                    "pd_rd_",
+                ];
+                const SECOND_LEVEL = [
+                    "co",
+                    "com",
+                    "org",
+                    "net",
+                    "gov",
+                    "edu",
+                    "ac",
+                    "or",
+                    "ne",
+                    "go",
+                    "gob",
+                    "mil",
+                    "sch",
+                    "ltd",
+                    "plc",
+                    "me",
+                    "info",
+                    "biz",
+                ];
+                const EMAIL_RE =
+                    /^[a-z0-9._%+'-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z0-9-]{2,}$/i;
+
+                const parseEmail = (text) => {
+                    const flat = text
+                        .trim()
+                        .replace(/^[^<>]*<([^<>\s]+)>$/, "$1")
+                        .replace(/^mailto:/i, "");
+                    return EMAIL_RE.test(flat) ? flat : null;
+                };
+
+                const rootDomain = (host) => {
+                    const labels = host.toLowerCase().split(".");
+                    if (labels.length <= 2) {
+                        return host.toLowerCase();
+                    }
+                    const tld = labels[labels.length - 1];
+                    const sld = labels[labels.length - 2];
+                    if (tld.length === 2 && SECOND_LEVEL.indexOf(sld) !== -1) {
+                        return labels.slice(-3).join(".");
+                    }
+                    return labels.slice(-2).join(".");
+                };
+
+                const paramName = (pair) => {
+                    let name = pair.split("=")[0];
+                    try {
+                        name = decodeURIComponent(name);
+                    } catch (e) {}
+                    return name.toLowerCase();
+                };
+
+                const cleanUrl = (text) => {
+                    let url;
+                    try {
+                        url = new URL(
+                            /^www\./i.test(text) ? `https://${text}` : text,
+                        );
+                    } catch (e) {
+                        return null;
+                    }
+                    if (!/^https?:$/.test(url.protocol)) {
+                        return null;
+                    }
+                    const kept = [];
+                    const removed = [];
+                    const raw = url.search.slice(1);
+                    (raw ? raw.split("&") : []).forEach((pair) => {
+                        if (!pair) {
+                            return;
+                        }
+                        const name = paramName(pair);
+                        const tracked =
+                            TRACKING_PARAMS.indexOf(name) !== -1 ||
+                            TRACKING_PREFIXES.some(
+                                (p) => name.indexOf(p) === 0,
+                            );
+                        (tracked ? removed : kept).push(tracked ? name : pair);
+                    });
+                    const query = kept.length ? `?${kept.join("&")}` : "";
+                    return {
+                        url: `${url.origin}${url.pathname}${query}${url.hash}`,
+                        host: url.hostname.replace(/^www\./i, ""),
+                        removed: removed,
+                    };
+                };
+
+                const buildUtilities = (query) => {
+                    const q = query.trim();
+                    const email = parseEmail(q);
+                    if (email) {
+                        const domain = email
+                            .slice(email.lastIndexOf("@") + 1)
+                            .toLowerCase();
+                        const root = rootDomain(domain);
+                        const rows = [{ value: domain, label: "Domain" }];
+                        if (root !== domain) {
+                            rows.push({ value: root, label: "Root domain" });
+                        }
+                        rows.push({
+                            value: email.toLowerCase(),
+                            label: "Email address (cleaned)",
+                        });
+                        return rows;
+                    }
+                    if (/^(https?:\/\/|www\.)\S+$/i.test(q)) {
+                        const result = cleanUrl(q);
+                        if (!result) {
+                            return [];
+                        }
+                        const urlRoot = rootDomain(result.host);
+                        const list = [
+                            {
+                                value: result.url,
+                                label: result.removed.length
+                                    ? `Clean link, removed ${result.removed.join(", ")}`
+                                    : "Clean link (no trackers found)",
+                            },
+                            { value: result.host, label: "Domain" },
+                        ];
+                        if (urlRoot !== result.host) {
+                            list.push({ value: urlRoot, label: "Root domain" });
+                        }
+                        list.push({
+                            value: `[${result.host}](${result.url})`,
+                            label: "Markdown link",
+                        });
+                        return list;
+                    }
+                    return [];
+                };
+
+                const COPY_ICON =
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+
+                const allRows = () => {
+                    return utils
+                        .map((data) => ({ kind: "util", data: data }))
+                        .concat(
+                            filtered.map((data) => ({
+                                kind: "tab",
+                                data: data,
+                            })),
+                        )
+                        .concat(
+                            filteredHistory.map((data) => ({
+                                kind: "history",
+                                data: data,
+                            })),
+                        );
+                };
+
+                const updateHint = () => {
+                    const row = allRows()[selectedIndex];
+                    const verb = row && row.kind === "util" ? "copy" : "switch";
+                    hint.textContent = `\u2191\u2193 navigate \u00a0\u2022\u00a0 Enter ${verb}`;
+                };
+
+                const flashHint = (text) => {
+                    hint.textContent = text;
+                    clearTimeout(hintTimer);
+                    hintTimer = setTimeout(updateHint, 1600);
+                };
+
+                const shorten = (text) => {
+                    return text.length > 34
+                        ? `${text.slice(0, 33)}\u2026`
+                        : text;
+                };
+
+                const copyUtility = (item) => {
+                    const failed = () =>
+                        flashHint("Your browser blocked copying");
+                    if (navigator.clipboard?.writeText) {
+                        navigator.clipboard
+                            .writeText(item.value)
+                            .then(
+                                () =>
+                                    flashHint(
+                                        `\u2713 Copied ${shorten(item.value)}`,
+                                    ),
+                                failed,
+                            );
+                    } else {
+                        failed();
+                    }
+                };
+
+                const select = (index) => {
+                    if (rowEls[selectedIndex]) {
+                        rowEls[selectedIndex].classList.remove("selected");
+                    }
+                    selectedIndex = index;
+                    if (rowEls[index]) {
+                        rowEls[index].classList.add("selected");
+                    }
+                    updateHint();
+                };
+
+                const activate = (index) => {
+                    const row = allRows()[index];
+                    if (!row) {
+                        return;
+                    }
+                    if (row.kind === "util") {
+                        copyUtility(row.data);
+                        return;
+                    }
+                    input.value = row.data.title;
+                    filter(input.value);
+                };
+
+                const render = () => {
                     results.innerHTML = "";
-                    if (filtered.length === 0 && filteredHistory.length === 0) {
-                        var empty = document.createElement("div");
+                    rowEls = [];
+                    const rows = allRows();
+                    if (rows.length === 0) {
+                        const empty = document.createElement("div");
                         empty.className = "demo-empty";
                         empty.textContent = input.value.trim()
                             ? "No matching tabs or history"
-                            : "Start typing to search";
+                            : "Start typing, or paste an email or link";
                         results.appendChild(empty);
+                        updateHint();
                         return;
                     }
-                    var rowCount = 0;
-                    filtered.forEach((tab) => {
-                        var i = rowCount++;
-                        var row = document.createElement("div");
-                        row.className =
-                            "demo-row" +
-                            (i === selectedIndex ? " selected" : "");
+                    let lastKind = null;
+                    rows.forEach((row, i) => {
+                        if (row.kind !== lastKind) {
+                            let heading = null;
+                            if (row.kind === "util") {
+                                heading = "Utilities";
+                            } else if (row.kind === "history") {
+                                heading = "From history";
+                            } else if (utils.length > 0) {
+                                heading = "Open tabs";
+                            }
+                            if (heading) {
+                                const header = document.createElement("div");
+                                header.className = "demo-section-header";
+                                header.textContent = heading;
+                                results.appendChild(header);
+                            }
+                            lastKind = row.kind;
+                        }
 
-                        var icon = document.createElement("div");
-                        icon.className = "favicon";
-                        icon.style.setProperty(
-                            "--swatch",
-                            faviconColor(tab.title),
-                        );
-                        icon.textContent = tab.title.charAt(0).toUpperCase();
+                        const el = document.createElement("div");
+                        el.className = `demo-row${i === selectedIndex ? " selected" : ""}`;
 
-                        var title = document.createElement("div");
-                        title.className = "title";
-                        title.textContent = tab.title;
+                        if (row.kind === "util") {
+                            const icon = document.createElement("span");
+                            icon.className = "util-icon";
+                            icon.innerHTML = COPY_ICON;
 
-                        row.appendChild(icon);
-                        row.appendChild(title);
-                        row.addEventListener("mouseenter", () => {
-                            selectedIndex = i;
-                            render();
-                        });
-                        results.appendChild(row);
+                            const text = document.createElement("div");
+                            text.className = "text";
+                            const uTitle = document.createElement("div");
+                            uTitle.className = "title mono";
+                            uTitle.textContent = row.data.value;
+                            const sub = document.createElement("div");
+                            sub.className = "sub";
+                            sub.textContent = row.data.label;
+                            text.appendChild(uTitle);
+                            text.appendChild(sub);
+
+                            const copyBadge = document.createElement("span");
+                            copyBadge.className = "demo-badge";
+                            copyBadge.textContent = "copy";
+
+                            el.appendChild(icon);
+                            el.appendChild(text);
+                            el.appendChild(copyBadge);
+                        } else {
+                            if (row.kind === "tab") {
+                                const favicon = document.createElement("div");
+                                favicon.className = "favicon";
+                                favicon.style.setProperty(
+                                    "--swatch",
+                                    faviconColor(row.data.title),
+                                );
+                                favicon.textContent = row.data.title
+                                    .charAt(0)
+                                    .toUpperCase();
+                                el.appendChild(favicon);
+                            }
+                            const title = document.createElement("div");
+                            title.className = "title";
+                            title.textContent = row.data.title;
+                            el.appendChild(title);
+                            if (row.kind === "history") {
+                                const badge = document.createElement("span");
+                                badge.className = "demo-badge";
+                                badge.textContent = "history";
+                                el.appendChild(badge);
+                            }
+                        }
+
+                        el.addEventListener("mouseenter", () => select(i));
+                        el.addEventListener("click", () => activate(i));
+                        results.appendChild(el);
+                        rowEls.push(el);
                     });
-                    if (filteredHistory.length > 0) {
-                        var header = document.createElement("div");
-                        header.className = "demo-section-header";
-                        header.textContent = "From history";
-                        results.appendChild(header);
-                    }
-                    filteredHistory.forEach((page) => {
-                        var i = rowCount++;
-                        var row = document.createElement("div");
-                        row.className =
-                            "demo-row" +
-                            (i === selectedIndex ? " selected" : "");
+                    updateHint();
+                };
 
-                        var title = document.createElement("div");
-                        title.className = "title";
-                        title.textContent = page.title;
-
-                        var badge = document.createElement("span");
-                        badge.className = "demo-badge";
-                        badge.textContent = "history";
-
-                        row.appendChild(title);
-                        row.appendChild(badge);
-                        row.addEventListener("mouseenter", () => {
-                            selectedIndex = i;
-                            render();
-                        });
-                        results.appendChild(row);
-                    });
-                }
-
-                function filter(query) {
-                    var q = query.trim().toLowerCase();
+                const filter = (query) => {
+                    const q = query.trim().toLowerCase();
                     filtered = q
                         ? TABS.filter(
                               (t) =>
@@ -1060,37 +1582,43 @@
                                   h.url.toLowerCase().indexOf(q) !== -1,
                           )
                         : [];
+                    utils = q ? buildUtilities(query) : [];
                     selectedIndex = 0;
                     render();
-                }
+                };
 
                 input.addEventListener("input", () => {
                     filter(input.value);
                 });
                 input.addEventListener("keydown", (e) => {
-                    var total = filtered.length + filteredHistory.length;
-                    if (e.key === "ArrowDown") {
+                    const total = allRows().length;
+                    if (e.key === "ArrowDown" && total) {
                         e.preventDefault();
-                        selectedIndex = Math.min(selectedIndex + 1, total - 1);
-                        render();
-                    } else if (e.key === "ArrowUp") {
+                        select(Math.min(selectedIndex + 1, total - 1));
+                        rowEls[selectedIndex].scrollIntoView({
+                            block: "nearest",
+                        });
+                    } else if (e.key === "ArrowUp" && total) {
                         e.preventDefault();
-                        selectedIndex = Math.max(selectedIndex - 1, 0);
-                        render();
+                        select(Math.max(selectedIndex - 1, 0));
+                        rowEls[selectedIndex].scrollIntoView({
+                            block: "nearest",
+                        });
                     } else if (e.key === "Enter" && total) {
                         e.preventDefault();
-                        var picked =
-                            selectedIndex < filtered.length
-                                ? filtered[selectedIndex]
-                                : filteredHistory[
-                                      selectedIndex - filtered.length
-                                  ];
-                        input.value = picked.title;
-                        filter(input.value);
+                        activate(selectedIndex);
                     }
                 });
                 input.value = "fi";
                 filter(input.value);
+
+                document.querySelectorAll(".demo-chip").forEach((chip) => {
+                    chip.addEventListener("click", () => {
+                        input.value = chip.dataset.value;
+                        filter(input.value);
+                        input.focus();
+                    });
+                });
 
                 // accent swatches
                 var swatchGrid = document.getElementById("swatch-grid");

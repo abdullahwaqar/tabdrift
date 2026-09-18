@@ -4,6 +4,8 @@ export interface TabSearchSettings {
     shortcut: string; // WebExtensions commands.update() format, e.g. "Alt+D"
     position: OverlayPosition;
     accent: string; // hex color
+    /** Paste an email or link into the overlay and its main result is copied straight away. */
+    quickCopy: boolean;
 }
 
 export const COMMAND_NAME = "_execute_action";
@@ -12,6 +14,7 @@ export const DEFAULT_SETTINGS: TabSearchSettings = {
     shortcut: "Alt+Shift+K",
     position: "center",
     accent: "#3b82f6",
+    quickCopy: false,
 };
 
 const STORAGE_KEY = "local:tabSearchSettings";

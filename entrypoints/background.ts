@@ -1,11 +1,38 @@
 import { defineBackground } from "wxt/utils/define-background";
+import { copyText } from "../lib/clipboard";
 import { COMMAND_NAME, getSettings } from "../lib/settings";
+import { cleanUrl } from "../lib/utils";
+
+const COPY_CLEAN_URL_COMMAND = "copy-clean-url";
+const MENU_COPY_CLEAN_LINK = "tabdrift-copy-clean-link";
 
 export default defineBackground(() => {
     applyStoredShortcut();
 
     browser.action.onClicked.addListener(async () => {
         await toggleOverlayOnActiveTab();
+    });
+
+    browser.runtime.onInstalled.addListener(() => {
+        browser.contextMenus.removeAll().then(() => {
+            browser.contextMenus.create({ id: MENU_COPY_CLEAN_LINK, title: "Copy clean link", contexts: ["link"] });
+        });
+    });
+
+    browser.contextMenus.onClicked.addListener(async (info, tab) => {
+        if (info.menuItemId === MENU_COPY_CLEAN_LINK && info.linkUrl) {
+            await copyCleanLink(info.linkUrl, tab);
+        }
+    });
+
+    browser.commands.onCommand.addListener(async (name) => {
+        if (name !== COPY_CLEAN_URL_COMMAND) {
+            return;
+        }
+        const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
+        if (tab?.url) {
+            await copyCleanLink(tab.url, tab);
+        }
     });
 
     browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
@@ -110,16 +137,23 @@ async function toggleOverlayOnActiveTab() {
     if (!tab?.id) {
         return;
     }
-    const tabId = tab.id;
 
     if (isRestrictedUrl(tab.url)) {
         console.warn("[tabdrift] can't run on this page (a restricted internal page):", tab.url);
         return;
     }
 
+    await sendToTab(tab.id, { action: "showTabSearch" });
+}
+
+/**
+ * Sends a message to the overlay script in a tab, injecting the script first
+ * if it isn't there yet. Returns false if the tab can't be scripted.
+ */
+async function sendToTab(tabId: number, message: { action: string; text?: string }): Promise<boolean> {
     try {
-        await browser.tabs.sendMessage(tabId, { action: "showTabSearch" });
-        return;
+        await browser.tabs.sendMessage(tabId, message);
+        return true;
     } catch {}
 
     try {
@@ -127,8 +161,43 @@ async function toggleOverlayOnActiveTab() {
             target: { tabId },
             files: ["/tabdrift-overlay.js"],
         });
-        await browser.tabs.sendMessage(tabId, { action: "showTabSearch" });
+        await browser.tabs.sendMessage(tabId, message);
+        return true;
     } catch (err) {
         console.error("[tabdrift] could not inject overlay script:", err);
+        return false;
+    }
+}
+
+async function copyCleanLink(rawUrl: string, tab?: { id?: number; url?: string }) {
+    const { url, removed } = cleanUrl(rawUrl);
+    const ok = url !== "" && (await copyText(url));
+
+    const trackers = new Set(removed).size;
+    let text = "Couldn't copy the link";
+    if (ok) {
+        if (url === rawUrl.trim()) {
+            text = "Copied link (already clean)";
+        } else if (trackers > 0) {
+            text = `Copied clean link (${trackers} tracker${trackers === 1 ? "" : "s"} removed)`;
+        } else {
+            text = "Copied clean link";
+        }
+    }
+
+    // The badge works on every page, including the ones we can't inject into.
+    flashBadge(tab?.id, ok);
+    if (tab?.id !== undefined && !isRestrictedUrl(tab.url)) {
+        await sendToTab(tab.id, { action: "showToast", text });
+    }
+}
+
+function flashBadge(tabId: number | undefined, ok: boolean) {
+    try {
+        browser.action.setBadgeBackgroundColor({ color: ok ? "#16a34a" : "#dc2626", tabId });
+        browser.action.setBadgeText({ text: ok ? "\u2713" : "!", tabId });
+        setTimeout(() => browser.action.setBadgeText({ text: "", tabId }), 1500);
+    } catch (err) {
+        console.error("[tabdrift] badge update failed:", err);
     }
 }

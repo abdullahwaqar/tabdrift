@@ -237,6 +237,63 @@
                 color: var(--text-dim);
             }
 
+            /* toggle switch */
+            .switch {
+                position: relative;
+                display: inline-block;
+                width: 38px;
+                height: 22px;
+            }
+            .switch input {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                opacity: 0;
+                cursor: pointer;
+                z-index: 1;
+            }
+            .switch .track {
+                position: absolute;
+                inset: 0;
+                border-radius: 999px;
+                background: var(--bg-raised);
+                border: 1px solid var(--border-strong);
+                transition:
+                    background 0.15s ease,
+                    border-color 0.15s ease;
+            }
+            .switch .track::after {
+                content: "";
+                position: absolute;
+                top: 2px;
+                left: 2px;
+                width: 16px;
+                height: 16px;
+                border-radius: 50%;
+                background: var(--text-dim);
+                transition:
+                    transform 0.15s ease,
+                    background 0.15s ease;
+            }
+            .switch input:checked + .track {
+                background: var(--accent);
+                border-color: var(--accent);
+            }
+            .switch input:checked + .track::after {
+                transform: translateX(16px);
+                background: #fff;
+            }
+            .switch input:focus-visible + .track {
+                box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+            }
+            #clean-shortcut {
+                display: flex;
+                align-items: center;
+                gap: 4px;
+            }
+
             footer {
                 display: flex;
                 align-items: center;
@@ -360,6 +417,39 @@
                     <div class="row-control accent-control">
                         <input id="accent-input" type="color" value="#3b82f6" />
                         <span id="accent-value">#3B82F6</span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <label class="row-title" for="quick-copy"
+                            >Quick copy</label
+                        >
+                        <p class="row-hint">
+                            Paste an email or link into the overlay and its main
+                            result (the domain, or the clean link) is copied
+                            straight away.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div class="switch">
+                            <input id="quick-copy" type="checkbox" />
+                            <span class="track"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <span class="row-title">Copy clean link</span>
+                        <p class="row-hint">
+                            Copies the page's link without tracking parameters.
+                            Also in the right-click menu. Change the key under
+                            Manage Extension Shortcuts in about:addons.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div id="clean-shortcut"></div>
                     </div>
                 </div>
             </section>

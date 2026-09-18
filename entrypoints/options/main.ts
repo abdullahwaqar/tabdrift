@@ -6,6 +6,8 @@ const miniBody = document.getElementById("mini-body") as HTMLDivElement;
 const zones = document.querySelectorAll<HTMLButtonElement>(".zone");
 const accentInput = document.getElementById("accent-input") as HTMLInputElement;
 const accentValue = document.getElementById("accent-value") as HTMLSpanElement;
+const quickCopyInput = document.getElementById("quick-copy") as HTMLInputElement;
+const cleanShortcut = document.getElementById("clean-shortcut") as HTMLDivElement;
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const status = document.getElementById("status") as HTMLDivElement;
 
@@ -20,27 +22,33 @@ async function init() {
     currentShortcut = settings.shortcut;
     currentPosition = settings.position;
 
-    renderKeycaps(currentShortcut);
+    renderKeycaps(shortcutInput, currentShortcut);
     setPosition(currentPosition);
 
     accentInput.value = settings.accent;
     setAccent(settings.accent);
+    quickCopyInput.checked = settings.quickCopy;
+
+    // Show whatever key the clean-link command is bound to right now.
+    const commands = await browser.commands.getAll();
+    const cleanCommand = commands.find((c) => c.name === "copy-clean-url");
+    renderKeycaps(cleanShortcut, cleanCommand?.shortcut || "Not set");
 }
 
-function renderKeycaps(shortcut: string) {
-    shortcutInput.innerHTML = "";
+function renderKeycaps(target: HTMLElement, shortcut: string) {
+    target.innerHTML = "";
     const parts = shortcut.split("+");
     parts.forEach((part, i) => {
         if (i > 0) {
             const join = document.createElement("span");
             join.className = "keycap-join";
             join.textContent = "+";
-            shortcutInput.appendChild(join);
+            target.appendChild(join);
         }
         const cap = document.createElement("span");
         cap.className = "keycap";
         cap.textContent = part;
-        shortcutInput.appendChild(cap);
+        target.appendChild(cap);
     });
 }
 
@@ -74,14 +82,14 @@ shortcutInput.addEventListener("keydown", (e) => {
     }
 
     currentShortcut = combo;
-    renderKeycaps(combo);
+    renderKeycaps(shortcutInput, combo);
     stopRecording();
 });
 
 shortcutInput.addEventListener("blur", () => {
     if (recording) {
         stopRecording();
-        renderKeycaps(currentShortcut);
+        renderKeycaps(shortcutInput, currentShortcut);
     }
 });
 
@@ -112,6 +120,7 @@ saveBtn.addEventListener("click", async () => {
         shortcut: currentShortcut,
         accent: accentInput.value,
         position: currentPosition,
+        quickCopy: quickCopyInput.checked,
     };
 
     await saveSettings(settings);

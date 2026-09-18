@@ -5,13 +5,19 @@ export default defineConfig({
     manifest: {
         name: "Tabdrift",
         description: "A fast tab switcher. Default: Alt+Shift+K.",
-        version: "1.0.2",
-        permissions: ["tabs", "activeTab", "storage", "scripting", "history"],
+        version: "1.0.3",
+        permissions: ["tabs", "activeTab", "storage", "scripting", "history", "clipboardWrite", "contextMenus"],
         commands: {
             _execute_action: {
                 suggested_key: {
                     default: "Alt+Shift+K",
                 },
+            },
+            "copy-clean-url": {
+                suggested_key: {
+                    default: "Alt+Shift+C",
+                },
+                description: "Copy this page's link without tracking parameters",
             },
         },
         icons: {
