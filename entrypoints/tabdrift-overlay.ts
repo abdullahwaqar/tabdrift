@@ -26,6 +26,10 @@ const HISTORY_DEBOUNCE_MS = 120;
 const HISTORY_LIMIT = 6;
 const TOAST_MS = 1800;
 const TOAST_MAX_CHARS = 56;
+const GUARDED_KEY_EVENTS = ["keydown", "keypress", "keyup"] as const;
+const GUARDED_FOCUS_EVENTS = ["focusin", "focus"] as const;
+const REFOCUS_LIMIT = 10;
+const REFOCUS_WINDOW_MS = 1000;
 
 const FUSE_OPTIONS = {
     keys: [
@@ -59,6 +63,13 @@ export default defineUnlistedScript(() => {
     let resultsEl: HTMLDivElement | null = null;
     let cardEl: HTMLDivElement | null = null;
     let hintEl: HTMLSpanElement | null = null;
+
+    let rowEls: HTMLElement[] = [];
+    let overlayActive = false;
+    let bodyWasInert = false;
+    let refocusTimes: number[] = [];
+    let previouslyFocused: HTMLElement | null = null;
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
 
     let toastEl: HTMLDivElement | null = null;
     let toastHost: HTMLDivElement | null = null;
@@ -97,7 +108,68 @@ export default defineUnlistedScript(() => {
         input.addEventListener("input", () => filterTabs(input?.value ?? ""));
         input.addEventListener("paste", () => setTimeout(maybeQuickCopy, 0));
         scrim.addEventListener("click", hideOverlay);
-        shadow.addEventListener("keydown", handleKeydown as EventListener);
+    }
+
+    function guardKey(e: KeyboardEvent) {
+        e.stopImmediatePropagation();
+        // Changing focus during keydown sends the typed character to the new target.
+        if (input && shadow?.activeElement !== input) {
+            input.focus();
+        }
+        if (e.type === "keydown") {
+            handleKeydown(e);
+        }
+    }
+
+    function canRefocus(): boolean {
+        const now = performance.now();
+        refocusTimes = refocusTimes.filter((t) => now - t < REFOCUS_WINDOW_MS);
+        if (refocusTimes.length >= REFOCUS_LIMIT) {
+            return false;
+        }
+        refocusTimes.push(now);
+        return true;
+    }
+
+    function guardFocus(e: Event) {
+        if (host && e.composedPath().includes(host)) {
+            return;
+        }
+        e.stopImmediatePropagation();
+        if (canRefocus()) {
+            input?.focus();
+        }
+    }
+
+    function setPageInert(on: boolean) {
+        const body = document.body;
+        if (!body || !("inert" in body)) {
+            return;
+        }
+        if (on) {
+            bodyWasInert = body.inert;
+            body.inert = true;
+        } else {
+            body.inert = bodyWasInert;
+        }
+    }
+
+    function addGuards() {
+        for (const type of GUARDED_KEY_EVENTS) {
+            window.addEventListener(type, guardKey as EventListener, true);
+        }
+        for (const type of GUARDED_FOCUS_EVENTS) {
+            window.addEventListener(type, guardFocus, true);
+        }
+    }
+
+    function removeGuards() {
+        for (const type of GUARDED_KEY_EVENTS) {
+            window.removeEventListener(type, guardKey as EventListener, true);
+        }
+        for (const type of GUARDED_FOCUS_EVENTS) {
+            window.removeEventListener(type, guardFocus, true);
+        }
     }
 
     function applyPositionAndAccent() {
@@ -114,11 +186,30 @@ export default defineUnlistedScript(() => {
         settings = await getSettings();
         applyPositionAndAccent();
 
+        if (hideTimer) {
+            clearTimeout(hideTimer);
+            hideTimer = null;
+        }
+        if (!overlayActive) {
+            const active = document.activeElement;
+            previouslyFocused = active instanceof HTMLElement && active !== document.body && active !== host ? active : null;
+            overlayActive = true;
+            refocusTimes = [];
+            setPageInert(true);
+            addGuards();
+        }
+
         if (host) {
             host.style.display = "block";
         }
         shadow?.getElementById("scrim")?.classList.add("open");
         cardEl?.classList.add("open");
+
+        // Take focus straight away, before the tab list has even loaded.
+        if (input) {
+            input.value = "";
+            input.focus();
+        }
 
         tabs = await browser.runtime.sendMessage({ action: "getTabs" });
         filtered = [];
@@ -126,11 +217,6 @@ export default defineUnlistedScript(() => {
         utilities = [];
         selectedIndex = 0;
         renderResults();
-
-        if (input) {
-            input.value = "";
-            input.focus();
-        }
     }
 
     function hideOverlay() {
@@ -142,9 +228,21 @@ export default defineUnlistedScript(() => {
             historyTimer = null;
         }
         historyRequestId++;
+
+        overlayActive = false;
+        removeGuards();
+        setPageInert(false);
+        // Hand focus back to whatever had it before.
+        const returnTo = previouslyFocused;
+        previouslyFocused = null;
+        if (returnTo?.isConnected) {
+            returnTo.focus({ preventScroll: true });
+        }
+
         shadow?.getElementById("scrim")?.classList.remove("open");
         cardEl?.classList.remove("open");
-        setTimeout(() => {
+        hideTimer = setTimeout(() => {
+            hideTimer = null;
             if (host) {
                 host.style.display = "none";
             }
@@ -282,11 +380,23 @@ export default defineUnlistedScript(() => {
         return parts;
     }
 
+    /** Moves the highlight without rebuilding the list, so a click can't land on a row that was just replaced. */
+    function selectRow(index: number) {
+        if (index === selectedIndex) {
+            return;
+        }
+        rowEls[selectedIndex]?.classList.remove("selected");
+        selectedIndex = index;
+        rowEls[index]?.classList.add("selected");
+        updateHint(getRows()[index]);
+    }
+
     function renderResults() {
         if (!resultsEl) {
             return;
         }
         resultsEl.innerHTML = "";
+        rowEls = [];
 
         const rows = getRows();
         updateHint(rows[selectedIndex]);
@@ -299,7 +409,7 @@ export default defineUnlistedScript(() => {
             return;
         }
 
-        const rowEls: HTMLElement[] = [];
+        rowEls = [];
         let lastKind: ResultRow["kind"] | null = null;
 
         rows.forEach((row, i) => {
@@ -320,10 +430,7 @@ export default defineUnlistedScript(() => {
 
             el.addEventListener("click", () => activateRow(row));
             const capturedIndex = i;
-            el.addEventListener("mouseenter", () => {
-                selectedIndex = capturedIndex;
-                renderResults();
-            });
+            el.addEventListener("mouseenter", () => selectRow(capturedIndex));
 
             resultsEl?.appendChild(el);
             rowEls.push(el);
@@ -407,6 +514,9 @@ export default defineUnlistedScript(() => {
     }
 
     function handleKeydown(e: KeyboardEvent) {
+        if (e.isComposing) {
+            return;
+        }
         if (e.key === "Escape") {
             e.preventDefault();
             hideOverlay();
@@ -430,7 +540,7 @@ export default defineUnlistedScript(() => {
 
     browser.runtime.onMessage.addListener((message) => {
         if (message?.action === "showTabSearch") {
-            if (host && host.style.display === "block") {
+            if (overlayActive) {
                 hideOverlay();
             } else {
                 showOverlay();
