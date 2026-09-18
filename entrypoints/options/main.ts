@@ -7,6 +7,7 @@ const zones = document.querySelectorAll<HTMLButtonElement>(".zone");
 const accentInput = document.getElementById("accent-input") as HTMLInputElement;
 const accentValue = document.getElementById("accent-value") as HTMLSpanElement;
 const quickCopyInput = document.getElementById("quick-copy") as HTMLInputElement;
+const listOnOpenInput = document.getElementById("list-on-open") as HTMLInputElement;
 const cleanShortcut = document.getElementById("clean-shortcut") as HTMLDivElement;
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const status = document.getElementById("status") as HTMLDivElement;
@@ -28,6 +29,7 @@ async function init() {
     accentInput.value = settings.accent;
     setAccent(settings.accent);
     quickCopyInput.checked = settings.quickCopy;
+    listOnOpenInput.checked = settings.listOnOpen;
 
     // Show whatever key the clean-link command is bound to right now.
     const commands = await browser.commands.getAll();
@@ -121,6 +123,7 @@ saveBtn.addEventListener("click", async () => {
         accent: accentInput.value,
         position: currentPosition,
         quickCopy: quickCopyInput.checked,
+        listOnOpen: listOnOpenInput.checked,
     };
 
     await saveSettings(settings);

@@ -4,13 +4,28 @@ import { copyText } from "../lib/clipboard";
 import type { TabSearchSettings } from "../lib/settings";
 import { getSettings, onSettingsChanged } from "../lib/settings";
 import type { UtilAction } from "../lib/utils";
-import { buildUtilities } from "../lib/utils";
+import { buildUtilities, duplicateKey } from "../lib/utils";
 
 interface TabInfo {
     id: number;
     title?: string;
     url?: string;
     favIconUrl?: string;
+    pinned?: boolean;
+    active?: boolean;
+    lastAccessed?: number;
+    /** The tab this overlay is open in. */
+    current?: boolean;
+}
+
+/** A row that closes several tabs at once. */
+interface ActionRow {
+    id: "close-duplicates" | "close-matching";
+    label: string;
+    sub: string;
+    tabs: TabInfo[];
+    /** Needs a second Enter before anything is closed. */
+    confirm: boolean;
 }
 
 interface HistoryInfo {
@@ -20,12 +35,18 @@ interface HistoryInfo {
     lastVisitTime: number;
 }
 
-type ResultRow = { kind: "util"; data: UtilAction } | { kind: "tab"; data: TabInfo } | { kind: "history"; data: HistoryInfo };
+type ResultRow =
+    | { kind: "util"; data: UtilAction }
+    | { kind: "action"; data: ActionRow }
+    | { kind: "tab"; data: TabInfo }
+    | { kind: "history"; data: HistoryInfo };
 
 const HISTORY_DEBOUNCE_MS = 120;
 const HISTORY_LIMIT = 6;
 const TOAST_MS = 1800;
 const TOAST_MAX_CHARS = 56;
+const HINT_FLASH_MS = 2600;
+const IS_MAC = /mac/i.test(navigator.platform);
 const GUARDED_KEY_EVENTS = ["keydown", "keypress", "keyup"] as const;
 const GUARDED_FOCUS_EVENTS = ["focusin", "focus"] as const;
 const REFOCUS_LIMIT = 10;
@@ -55,6 +76,11 @@ export default defineUnlistedScript(() => {
     let filtered: TabInfo[] = [];
     let historyResults: HistoryInfo[] = [];
     let utilities: UtilAction[] = [];
+    let actions: ActionRow[] = [];
+    let armedActionId: ActionRow["id"] | null = null;
+    let closedCount = 0;
+    let hintFlash: string | null = null;
+    let hintFlashTimer: ReturnType<typeof setTimeout> | null = null;
     let selectedIndex = 0;
     let historyTimer: ReturnType<typeof setTimeout> | null = null;
     let historyRequestId = 0;
@@ -212,11 +238,10 @@ export default defineUnlistedScript(() => {
         }
 
         tabs = await browser.runtime.sendMessage({ action: "getTabs" });
-        filtered = [];
+        closedCount = 0;
+        hintFlash = null;
         historyResults = [];
-        utilities = [];
-        selectedIndex = 0;
-        renderResults();
+        filterTabs(input?.value ?? "");
     }
 
     function hideOverlay() {
@@ -232,7 +257,7 @@ export default defineUnlistedScript(() => {
         overlayActive = false;
         removeGuards();
         setPageInert(false);
-        // Hand focus back to whatever had it before.
+        // Hand focus back to whatever had it before, e.g. the chat box.
         const returnTo = previouslyFocused;
         previouslyFocused = null;
         if (returnTo?.isConnected) {
@@ -249,13 +274,92 @@ export default defineUnlistedScript(() => {
         }, 120);
     }
 
+    /** Open tabs, most recently used first, without the tab the overlay is in. */
+    function recentTabs(): TabInfo[] {
+        return tabs.filter((t) => !t.current).sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
+    }
+
+    /** Tabs showing a page that is already open elsewhere. One copy of each page is kept. */
+    function findDuplicateTabs(): TabInfo[] {
+        const groups = new Map<string, TabInfo[]>();
+        for (const tab of tabs) {
+            if (!tab.url) {
+                continue;
+            }
+            const key = duplicateKey(tab.url);
+            groups.set(key, [...(groups.get(key) ?? []), tab]);
+        }
+
+        const extras: TabInfo[] = [];
+        for (const group of groups.values()) {
+            if (group.length < 2) {
+                continue;
+            }
+            const byRecent = [...group].sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
+            const keeper = byRecent.find((t) => t.current) ?? byRecent.find((t) => t.pinned) ?? byRecent.find((t) => t.active) ?? byRecent[0];
+            for (const tab of group) {
+                if (tab !== keeper && !tab.pinned && !tab.current) {
+                    extras.push(tab);
+                }
+            }
+        }
+        return extras;
+    }
+
+    function plural(n: number, word: string): string {
+        return `${n} ${word}${n === 1 ? "" : "s"}`;
+    }
+
+    function computeActions(q: string): ActionRow[] {
+        if (!q) {
+            const extras = findDuplicateTabs();
+            if (extras.length === 0) {
+                return [];
+            }
+            return [
+                {
+                    id: "close-duplicates",
+                    label: `Close ${plural(extras.length, "duplicate tab")}`,
+                    sub: "Keeps one copy of each page",
+                    tabs: extras,
+                    confirm: false,
+                },
+            ];
+        }
+
+        const closable = filtered.filter((t) => !t.current && !t.pinned);
+        if (closable.length < 2) {
+            return [];
+        }
+        const skipped = filtered.length - closable.length;
+        return [
+            {
+                id: "close-matching",
+                label: `Close all ${closable.length} matching tabs`,
+                sub: skipped > 0 ? "Pinned tabs and this tab stay. Press Enter twice" : "Press Enter twice to confirm",
+                tabs: closable,
+                confirm: true,
+            },
+        ];
+    }
+
+    /** Action rows sit above the results but are never the preselected row, so Enter still switches tabs. */
+    function defaultIndex(): number {
+        const first = getRows().findIndex((r) => r.kind !== "action");
+        return first === -1 ? 0 : first;
+    }
+
     function filterTabs(query: string) {
         const q = query.trim();
+        armedActionId = null;
+
         if (!q) {
-            filtered = [];
+            const listing = settings?.listOnOpen ?? true;
+            filtered = listing ? recentTabs() : [];
+            actions = listing ? computeActions("") : [];
             historyResults = [];
             utilities = [];
-            selectedIndex = 0;
+            selectedIndex = defaultIndex();
             renderResults();
             return;
         }
@@ -263,7 +367,8 @@ export default defineUnlistedScript(() => {
         const tabFuse = new Fuse(tabs, FUSE_OPTIONS);
         filtered = tabFuse.search(q).map((r) => r.item);
         utilities = buildUtilities(q, tabs);
-        selectedIndex = 0;
+        actions = computeActions(q);
+        selectedIndex = defaultIndex();
         renderResults();
         queueHistorySearch(q);
     }
@@ -296,6 +401,7 @@ export default defineUnlistedScript(() => {
     function getRows(): ResultRow[] {
         return [
             ...utilities.map((data): ResultRow => ({ kind: "util", data })),
+            ...actions.map((data): ResultRow => ({ kind: "action", data })),
             ...filtered.map((data): ResultRow => ({ kind: "tab", data })),
             ...historyResults.map((data): ResultRow => ({ kind: "history", data })),
         ];
@@ -305,22 +411,68 @@ export default defineUnlistedScript(() => {
         if (kind === "util") {
             return "Utilities";
         }
+        if (kind === "action") {
+            return "Clean up";
+        }
         if (kind === "history") {
             return "From history";
         }
+        if (!input?.value.trim()) {
+            return `Recent tabs \u00b7 ${filtered.length}`;
+        }
         // Tabs only need a label when something else sits above them.
-        return utilities.length > 0 ? "Open tabs" : null;
+        return utilities.length > 0 || actions.length > 0 ? `Open tabs \u00b7 ${filtered.length}` : null;
+    }
+
+    function closeKeyLabel(): string {
+        return "Ctrl+D";
+    }
+
+    function reopenKeyLabel(): string {
+        return IS_MAC ? "\u2318\u21e7T" : "Ctrl+Shift+T";
     }
 
     function updateHint(row: ResultRow | undefined) {
         if (!hintEl) {
             return;
         }
-        let verb = "switch";
-        if (row?.kind === "util") {
-            verb = row.data.action === "copy" ? "copy" : "open";
+        if (hintFlash) {
+            hintEl.textContent = hintFlash;
+            return;
         }
-        hintEl.textContent = `\u2191\u2193 navigate \u00a0\u2022\u00a0 Enter ${verb} \u00a0\u2022\u00a0 Esc close`;
+
+        const dot = " \u00a0\u2022\u00a0 ";
+        const parts = ["\u2191\u2193 navigate"];
+        if (row?.kind === "util") {
+            parts.push(`Enter ${row.data.action === "copy" ? "copy" : "open"}`);
+        } else if (row?.kind === "action") {
+            parts.push(armedActionId === row.data.id ? "Enter again to close them" : "Enter close");
+        } else if (row?.kind === "tab") {
+            parts.push("Enter switch");
+            if (!row.data.current) {
+                parts.push(`${closeKeyLabel()} close tab`);
+            }
+        } else if (row?.kind === "history") {
+            parts.push("Enter open");
+        } else {
+            parts.push("Enter switch");
+        }
+        parts.push("Esc close");
+        hintEl.textContent = parts.join(dot);
+    }
+
+    /** Shows a message in the footer for a moment, then goes back to the key hints. */
+    function flashHint(text: string) {
+        hintFlash = text;
+        if (hintFlashTimer) {
+            clearTimeout(hintFlashTimer);
+        }
+        hintFlashTimer = setTimeout(() => {
+            hintFlash = null;
+            hintFlashTimer = null;
+            updateHint(getRows()[selectedIndex]);
+        }, HINT_FLASH_MS);
+        updateHint(getRows()[selectedIndex]);
     }
 
     function buildUtilRow(action: UtilAction): HTMLElement[] {
@@ -348,7 +500,34 @@ export default defineUnlistedScript(() => {
         return [icon, text, badge];
     }
 
-    function buildEntryRow(row: Exclude<ResultRow, { kind: "util" }>): HTMLElement[] {
+    function buildActionRow(action: ActionRow): HTMLElement[] {
+        const armed = armedActionId === action.id;
+
+        const icon = document.createElement("span");
+        icon.className = "util-icon";
+        icon.innerHTML = TRASH_ICON;
+
+        const text = document.createElement("div");
+        text.className = "text";
+
+        const title = document.createElement("div");
+        title.className = "title";
+        title.textContent = armed ? `Close ${plural(action.tabs.length, "tab")}? Press Enter again` : action.label;
+
+        const sub = document.createElement("div");
+        sub.className = "url";
+        sub.textContent = armed ? `Undo with ${reopenKeyLabel()}` : action.sub;
+
+        text.append(title, sub);
+
+        const badge = document.createElement("span");
+        badge.className = "badge";
+        badge.textContent = "close";
+
+        return [icon, text, badge];
+    }
+
+    function buildEntryRow(row: Exclude<ResultRow, { kind: "util" | "action" }>): HTMLElement[] {
         const icon = document.createElement("img");
         icon.className = "favicon";
         icon.src = row.kind === "tab" ? row.data.favIconUrl || "" : "";
@@ -377,6 +556,28 @@ export default defineUnlistedScript(() => {
             badge.textContent = "history";
             parts.push(badge);
         }
+
+        if (row.kind === "tab") {
+            if (row.data.pinned || row.data.current) {
+                const badge = document.createElement("span");
+                badge.className = "badge";
+                badge.textContent = row.data.current ? "this tab" : "pinned";
+                parts.push(badge);
+            }
+            if (!row.data.current) {
+                const closeBtn = document.createElement("button");
+                closeBtn.type = "button";
+                closeBtn.className = "close-btn";
+                closeBtn.title = `Close tab (${closeKeyLabel()})`;
+                closeBtn.setAttribute("aria-label", "Close tab");
+                closeBtn.innerHTML = CLOSE_ICON;
+                closeBtn.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    void closeSingleTab(row.data);
+                });
+                parts.push(closeBtn);
+            }
+        }
         return parts;
     }
 
@@ -384,6 +585,10 @@ export default defineUnlistedScript(() => {
     function selectRow(index: number) {
         if (index === selectedIndex) {
             return;
+        }
+        if (armedActionId) {
+            armedActionId = null;
+            renderResults();
         }
         rowEls[selectedIndex]?.classList.remove("selected");
         selectedIndex = index;
@@ -426,7 +631,16 @@ export default defineUnlistedScript(() => {
 
             const el = document.createElement("div");
             el.className = `row${i === selectedIndex ? " selected" : ""}`;
-            el.append(...(row.kind === "util" ? buildUtilRow(row.data) : buildEntryRow(row)));
+            if (row.kind === "action" && armedActionId === row.data.id) {
+                el.classList.add("danger");
+            }
+            if (row.kind === "util") {
+                el.append(...buildUtilRow(row.data));
+            } else if (row.kind === "action") {
+                el.append(...buildActionRow(row.data));
+            } else {
+                el.append(...buildEntryRow(row));
+            }
 
             el.addEventListener("click", () => activateRow(row));
             const capturedIndex = i;
@@ -442,11 +656,71 @@ export default defineUnlistedScript(() => {
     async function activateRow(row: ResultRow) {
         if (row.kind === "util") {
             await runUtility(row.data);
+        } else if (row.kind === "action") {
+            await runAction(row.data);
         } else if (row.kind === "tab") {
             await switchToTab(row.data.id);
         } else {
             await openHistoryEntry(row.data.url);
         }
+    }
+
+    /** Closes tabs through the background script and keeps the overlay open for the next one. */
+    async function closeTabs(list: TabInfo[], selectAfter?: number) {
+        const ids = list.map((t) => t.id);
+        if (ids.length === 0) {
+            return;
+        }
+        const previousIndex = selectedIndex;
+        const reply = (await browser.runtime.sendMessage({ action: "closeTabs", tabIds: ids })) as { success?: boolean } | undefined;
+        if (!reply?.success) {
+            flashHint("Couldn't close that tab");
+            return;
+        }
+
+        const gone = new Set(ids);
+        tabs = tabs.filter((t) => !gone.has(t.id));
+        closedCount += ids.length;
+
+        const name = (list[0]?.title || "tab").slice(0, 32);
+        const what = ids.length === 1 ? `\u201c${name}\u201d` : plural(ids.length, "tab");
+        flashHint(`\u2713 Closed ${what} (${closedCount} so far) \u00a0\u2022\u00a0 ${reopenKeyLabel()} to undo`);
+
+        filterTabs(input?.value ?? "");
+        const rows = getRows();
+        let next = selectAfter === undefined ? -1 : rows.findIndex((r) => r.kind === "tab" && r.data.id === selectAfter);
+        if (next === -1) {
+            next = Math.max(defaultIndex(), Math.min(previousIndex, rows.length - 1));
+        }
+        selectedIndex = Math.max(0, Math.min(next, rows.length - 1));
+        renderResults();
+    }
+
+    /** Closes one tab and moves the highlight to the tab below it, ready for the next. */
+    async function closeSingleTab(tab: TabInfo) {
+        if (tab.current) {
+            flashHint(`That's the tab you're on. Close it with ${IS_MAC ? "\u2318W" : "Ctrl+W"}`);
+            return;
+        }
+        const rows = getRows();
+        const at = rows.findIndex((r) => r.kind === "tab" && r.data.id === tab.id);
+        const neighbour =
+            rows.slice(at + 1).find((r) => r.kind === "tab") ??
+            rows
+                .slice(0, Math.max(at, 0))
+                .reverse()
+                .find((r) => r.kind === "tab");
+        await closeTabs([tab], neighbour?.kind === "tab" ? neighbour.data.id : undefined);
+    }
+
+    async function runAction(action: ActionRow) {
+        if (action.confirm && armedActionId !== action.id) {
+            armedActionId = action.id;
+            renderResults();
+            return;
+        }
+        armedActionId = null;
+        await closeTabs(action.tabs);
     }
 
     async function runUtility(action: UtilAction) {
@@ -514,10 +788,18 @@ export default defineUnlistedScript(() => {
     }
 
     function handleKeydown(e: KeyboardEvent) {
+        // Enter while composing text (IME) confirms the composition, not the row.
         if (e.isComposing) {
             return;
         }
-        if (e.key === "Escape") {
+        if (e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey && e.code === "KeyD") {
+            // Always swallow it (it's "bookmark this page" in Firefox), but only act once per key press.
+            e.preventDefault();
+            const row = getRows()[selectedIndex];
+            if (!e.repeat && row?.kind === "tab") {
+                void closeSingleTab(row.data);
+            }
+        } else if (e.key === "Escape") {
             e.preventDefault();
             hideOverlay();
         } else if (e.key === "Enter") {
@@ -529,10 +811,12 @@ export default defineUnlistedScript(() => {
             }
         } else if (e.key === "ArrowDown") {
             e.preventDefault();
+            armedActionId = null;
             selectedIndex = Math.min(selectedIndex + 1, getRows().length - 1);
             renderResults();
         } else if (e.key === "ArrowUp") {
             e.preventDefault();
+            armedActionId = null;
             selectedIndex = Math.max(selectedIndex - 1, 0);
             renderResults();
         }
@@ -552,6 +836,8 @@ export default defineUnlistedScript(() => {
 });
 
 const COPY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`;
+const TRASH_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12"/><path d="M9 7V4h6v3"/></svg>`;
+const CLOSE_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>`;
 const OPEN_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6"/><path d="M20 4 10 14"/><path d="M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>`;
 
 const TOAST_STYLES = `
@@ -734,6 +1020,29 @@ const STYLES = `
     color: var(--accent);
   }
   .util-icon svg { width: 16px; height: 16px; }
+  .row.danger { background: rgba(239, 68, 68, 0.22); }
+  .row.danger .util-icon { color: #f87171; }
+  .row.danger .title { color: #fecaca; }
+
+  .close-btn {
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    border-radius: 6px;
+    color: rgba(255, 255, 255, 0.5);
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.1s ease, background 0.1s ease, color 0.1s ease;
+  }
+  .close-btn svg { width: 13px; height: 13px; }
+  .row:hover .close-btn, .row.selected .close-btn { opacity: 1; }
+  .close-btn:hover { background: rgba(239, 68, 68, 0.28); color: #fecaca; }
   .title.mono {
     font-family: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, "Liberation Mono", monospace;
     font-size: 13px;

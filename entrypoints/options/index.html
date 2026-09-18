@@ -286,7 +286,9 @@
                 background: #fff;
             }
             .switch input:focus-visible + .track {
-                box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+                box-shadow:
+                    0 0 0 2px var(--bg),
+                    0 0 0 4px var(--accent);
             }
             #clean-shortcut {
                 display: flex;
@@ -417,6 +419,25 @@
                     <div class="row-control accent-control">
                         <input id="accent-input" type="color" value="#3b82f6" />
                         <span id="accent-value">#3B82F6</span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <label class="row-title" for="list-on-open"
+                            >List tabs on open</label
+                        >
+                        <p class="row-hint">
+                            Show your tabs, most recent first, as soon as the
+                            overlay opens. Press Ctrl+D on a tab to close it
+                            without leaving the overlay.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div class="switch">
+                            <input id="list-on-open" type="checkbox" />
+                            <span class="track"></span>
+                        </div>
                     </div>
                 </div>
 

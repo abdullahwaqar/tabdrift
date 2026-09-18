@@ -378,6 +378,19 @@ function queryKeys(url: URL): string[] {
     return raw.split("&").filter(Boolean).map(paramName);
 }
 
+/**
+ * Two tabs with the same key are showing the same page: tracking parameters,
+ * the #fragment and a trailing slash are ignored. Used to find duplicate tabs.
+ */
+export function duplicateKey(url: string): string {
+    const clean = cleanUrl(url).url;
+    const parsed = parseUrlInput(clean);
+    if (parsed) {
+        return `${parsed.protocol}//${parsed.host}${parsed.pathname.replace(/\/+$/, "")}${parsed.search}`;
+    }
+    return clean.split("#")[0] ?? clean;
+}
+
 /** Origin + path only: no query string, no hash. */
 export function stripQueryAndHash(url: string): string {
     const parsed = parseUrlInput(url);

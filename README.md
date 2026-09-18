@@ -21,6 +21,28 @@ marked "history". Pick one and it opens in a new tab. This needs the
 Default shortcut: `Alt+Shift+K`. Shortcut, overlay position, and accent
 color are all configurable from the settings page.
 
+## Clean up tabs
+
+Open the overlay and your tabs are listed, most recent first, before you
+type anything. Close the ones you're done with without leaving the keyboard.
+
+- **Ctrl+D** closes the highlighted tab. The overlay stays open and the
+  highlight moves to the next tab, so you can tap through a pile. Holding
+  the keys down doesn't repeat, and the small x on a row does the same with
+  the mouse.
+- **Close duplicate tabs**: when the same page is open more than once, a
+  Clean up row appears above the list (arrow up, Enter). It keeps one copy
+  of each page. Tracking parameters, `#fragments` and trailing slashes are
+  ignored when comparing.
+- **Close all matching tabs**: type something like a site name and the
+  same row offers to close everything that matched. It asks for a second
+  Enter first.
+
+Pinned tabs are never closed in bulk, and the tab you're on is never
+closed from its own overlay. Closed tabs are normal closed tabs, so
+`Ctrl+Shift+T` (`Cmd+Shift+T` on Mac) brings them back. Turn off "List
+tabs on open" in settings to go back to a blank box until you type.
+
 ## Email and link utilities
 
 Paste an email address or a link into the overlay and a **Utilities**

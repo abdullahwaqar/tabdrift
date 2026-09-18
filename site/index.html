@@ -6,7 +6,7 @@
         <title>Tabdrift, a fast keyboard-first tab switcher for Firefox</title>
         <meta
             name="description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each."
         />
         <link rel="canonical" href="https://abdullahwaqar.com/tabdrift" />
 
@@ -18,7 +18,7 @@
         />
         <meta
             property="og:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each."
         />
         <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
         <meta
@@ -34,7 +34,7 @@
         />
         <meta
             name="twitter:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL."
+            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each."
         />
         <meta
             name="twitter:image"
@@ -51,7 +51,7 @@
                 "name": "Tabdrift",
                 "applicationCategory": "BrowserExtension",
                 "operatingSystem": "Firefox",
-                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL.",
+                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each.",
                 "url": "https://abdullahwaqar.com/tabdrift",
                 "author": {
                     "@type": "Person",
@@ -551,6 +551,9 @@
                 color: var(--text-faint);
                 text-decoration: line-through;
             }
+            .code-block .dim {
+                color: var(--text-faint);
+            }
             .code-block .keep {
                 color: var(--text);
             }
@@ -765,6 +768,7 @@
                 <div class="nav-links">
                     <a href="#how">How it works</a>
                     <a href="#utilities">Utilities</a>
+                    <a href="#cleanup">Clean up</a>
                     <a href="#customize">Customize</a>
                     <a
                         href="https://github.com/abdullahwaqar/tabdrift"
@@ -1036,13 +1040,79 @@
                 </p>
             </section>
 
+            <section class="block" id="cleanup">
+                <div class="block-head">
+                    <h2>Clean up your tabs</h2>
+                    <p>
+                        Open Tabdrift and your tabs are listed, most recent
+                        first. Close the ones you're done with without leaving
+                        the keyboard or waiting on each one to load.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>Close as you go</h3>
+                        <p>
+                            Press the keys on the highlighted tab and it closes.
+                            The overlay stays open and the highlight moves down,
+                            so you can tap through a pile. Holding the keys
+                            doesn't repeat.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Ctrl</span>+<span
+                                    class="keycap"
+                                    >D</span
+                                >
+                                <span>close the highlighted tab</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Duplicates in one go</h3>
+                        <p>
+                            When the same page is open more than once, a Clean
+                            up row appears above the list. One Enter closes the
+                            extras and keeps a copy of each page. Tracking
+                            parameters and #fragments are ignored.
+                        </p>
+                        <div class="code-block">
+                            <span class="keep">Close 4 duplicate tabs</span
+                            ><br />
+                            <span class="dim">Keeps one copy of each page</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Close everything that matches</h3>
+                        <p>
+                            Type a site name or a word, then choose Close all
+                            matching tabs. It asks for a second Enter before it
+                            does anything.
+                        </p>
+                        <div class="code-block">
+                            <span class="hl">docs</span><br />
+                            <span class="keep">Close all 6 matching tabs?</span
+                            ><br />
+                            <span class="dim">Press Enter again</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    Pinned tabs are never closed in bulk, and the tab you're on
+                    is never closed from its own overlay. Tabs closed from
+                    Tabdrift are ordinary closed tabs, so Ctrl+Shift+T
+                    (Cmd+Shift+T on Mac) brings them back. You can turn off the
+                    tab list on open in settings.
+                </p>
+            </section>
+
             <section class="block" id="customize">
                 <div class="block-head">
                     <h2>Make it yours</h2>
                     <p>
                         Pick an accent color and where the overlay sits on
-                        screen, and switch Quick copy on or off, right from the
-                        same settings panel.
+                        screen, and switch Quick copy and the tab list on or
+                        off, right from the same settings panel.
                     </p>
                 </div>
                 <div class="customize-grid">

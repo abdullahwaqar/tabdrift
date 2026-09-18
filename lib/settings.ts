@@ -6,6 +6,8 @@ export interface TabSearchSettings {
     accent: string; // hex color
     /** Paste an email or link into the overlay and its main result is copied straight away. */
     quickCopy: boolean;
+    /** Show your tabs (most recent first) as soon as the overlay opens, before you type. */
+    listOnOpen: boolean;
 }
 
 export const COMMAND_NAME = "_execute_action";
@@ -15,6 +17,7 @@ export const DEFAULT_SETTINGS: TabSearchSettings = {
     position: "center",
     accent: "#3b82f6",
     quickCopy: false,
+    listOnOpen: true,
 };
 
 const STORAGE_KEY = "local:tabSearchSettings";

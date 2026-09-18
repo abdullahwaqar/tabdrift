@@ -35,9 +35,47 @@ export default defineBackground(() => {
         }
     });
 
-    browser.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (message?.action === "getTabs") {
-            browser.tabs.query({}).then(sendResponse);
+            browser.tabs
+                .query({})
+                .then((all) =>
+                    sendResponse(
+                        all.map((tab) => ({
+                            id: tab.id,
+                            title: tab.title,
+                            url: tab.url,
+                            favIconUrl: tab.favIconUrl,
+                            pinned: tab.pinned,
+                            active: tab.active,
+                            lastAccessed: tab.lastAccessed,
+                            // The tab the overlay is open in. It can't be closed from its own overlay.
+                            current: tab.id === sender.tab?.id,
+                        })),
+                    ),
+                )
+                .catch((err) => {
+                    console.error("[tabdrift] getTabs failed:", err);
+                    sendResponse([]);
+                });
+            return true;
+        }
+
+        if (message?.action === "closeTabs") {
+            const ids: number[] = Array.isArray(message.tabIds)
+                ? message.tabIds.filter((id: unknown): id is number => Number.isInteger(id) && id !== sender.tab?.id)
+                : [];
+            if (ids.length === 0) {
+                sendResponse({ success: false });
+                return;
+            }
+            browser.tabs
+                .remove(ids)
+                .then(() => sendResponse({ success: true, closed: ids.length }))
+                .catch((err) => {
+                    console.error("[tabdrift] closeTabs failed:", err);
+                    sendResponse({ success: false });
+                });
             return true;
         }
 
