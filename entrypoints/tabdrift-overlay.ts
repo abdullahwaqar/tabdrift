@@ -4,7 +4,7 @@ import { copyText } from "../lib/clipboard";
 import type { TabSearchSettings } from "../lib/settings";
 import { getSettings, onSettingsChanged } from "../lib/settings";
 import type { UtilAction } from "../lib/utils";
-import { buildUtilities, duplicateKey } from "../lib/utils";
+import { buildUtilities, duplicateKey, groupBySite } from "../lib/utils";
 
 interface TabInfo {
     id: number;
@@ -31,18 +31,25 @@ interface ActionRow {
 interface HistoryInfo {
     id: string;
     title?: string;
+    /** The exact page. For a site row, the most recently visited page on that site. */
     url?: string;
     lastVisitTime: number;
+    /** Set when this row stands for a whole site rather than one page. */
+    site?: { host: string; origin: string; count: number; pages: HistoryInfo[] };
 }
 
 type ResultRow =
     | { kind: "util"; data: UtilAction }
     | { kind: "action"; data: ActionRow }
     | { kind: "tab"; data: TabInfo }
-    | { kind: "history"; data: HistoryInfo };
+    /** `child` marks a page listed under an expanded site row. */
+    | { kind: "history"; data: HistoryInfo; child?: boolean };
 
 const HISTORY_DEBOUNCE_MS = 120;
 const HISTORY_LIMIT = 6;
+const EXPAND_LIMIT = 10;
+const HISTORY_POOL_PLAIN = 25;
+const HISTORY_POOL_GROUPED = 150;
 const TOAST_MS = 1800;
 const TOAST_MAX_CHARS = 56;
 const HINT_FLASH_MS = 2600;
@@ -76,6 +83,10 @@ export default defineUnlistedScript(() => {
     let filtered: TabInfo[] = [];
     let historyResults: HistoryInfo[] = [];
     let utilities: UtilAction[] = [];
+    /** Set while the list shows the copy and open options for one history row. */
+    let detail: { host: string; utilities: UtilAction[]; returnIndex: number } | null = null;
+    /** Host of the site row whose pages are listed underneath it. One at a time. */
+    let expandedHost: string | null = null;
     let actions: ActionRow[] = [];
     let armedActionId: ActionRow["id"] | null = null;
     let closedCount = 0;
@@ -352,6 +363,8 @@ export default defineUnlistedScript(() => {
     function filterTabs(query: string) {
         const q = query.trim();
         armedActionId = null;
+        detail = null;
+        expandedHost = null;
 
         if (!q) {
             const listing = settings?.listOnOpen ?? true;
@@ -379,7 +392,12 @@ export default defineUnlistedScript(() => {
         }
         const requestId = ++historyRequestId;
         historyTimer = setTimeout(async () => {
-            const raw = (await browser.runtime.sendMessage({ action: "searchHistory", query })) as HistoryInfo[];
+            const grouped = settings?.groupHistory ?? true;
+            const raw = (await browser.runtime.sendMessage({
+                action: "searchHistory",
+                query,
+                maxResults: grouped ? HISTORY_POOL_GROUPED : HISTORY_POOL_PLAIN,
+            })) as HistoryInfo[];
             // Bail if the input changed (or overlay closed) while this was in flight.
             if (requestId !== historyRequestId || input?.value.trim() !== query) {
                 return;
@@ -389,27 +407,102 @@ export default defineUnlistedScript(() => {
             const candidates = raw.filter((h) => h.url && !openUrls.has(h.url));
 
             const historyFuse = new Fuse(candidates, FUSE_OPTIONS);
-            historyResults = historyFuse
-                .search(query)
-                .slice(0, HISTORY_LIMIT)
-                .map((r) => r.item);
+            const ranked = historyFuse.search(query).map((r) => r.item);
+            historyResults = grouped ? collapseToSites(ranked) : ranked.slice(0, HISTORY_LIMIT);
 
             renderResults();
         }, HISTORY_DEBOUNCE_MS);
     }
 
+    /** One row per site. The row keeps the latest exact page, so Shift+Enter can still open it. */
+    function collapseToSites(ranked: HistoryInfo[]): HistoryInfo[] {
+        return groupBySite(ranked)
+            .slice(0, HISTORY_LIMIT)
+            .map((group) => ({
+                ...group.latest,
+                site: group.origin
+                    ? {
+                          host: group.host,
+                          origin: group.origin,
+                          count: group.count,
+                          pages: [...group.items].sort((a, b) => b.lastVisitTime - a.lastVisitTime),
+                      }
+                    : undefined,
+            }));
+    }
+
+    /** Swaps the list for the copy and open options of one history row (clean link, domain, Markdown...). */
+    function openDetail(entry: HistoryInfo) {
+        const options = entry.url ? buildUtilities(entry.url, tabs) : [];
+        if (options.length === 0) {
+            flashHint("No copy options for that link");
+            return;
+        }
+        detail = { host: entry.site?.host ?? hostLabel(entry.url), utilities: options, returnIndex: selectedIndex };
+        armedActionId = null;
+        selectedIndex = 0;
+        renderResults();
+    }
+
+    function closeDetail() {
+        const back = detail?.returnIndex ?? defaultIndex();
+        detail = null;
+        armedActionId = null;
+        selectedIndex = back;
+        renderResults();
+    }
+
+    /** Lists the pages behind a site row, right under it. */
+    function expandSite(entry: HistoryInfo) {
+        if (!entry.site) {
+            return;
+        }
+        expandedHost = entry.site.host;
+        renderResults();
+    }
+
+    /** Hides the expanded pages and puts the highlight back on their site row. */
+    function collapseSite() {
+        const host = expandedHost;
+        expandedHost = null;
+        const rows = getRows();
+        const at = rows.findIndex((r) => r.kind === "history" && r.data.site?.host === host);
+        if (at !== -1) {
+            selectedIndex = at;
+        }
+        renderResults();
+    }
+
+    function hostLabel(url: string | undefined): string {
+        try {
+            return new URL(url ?? "").host.replace(/^www\./i, "");
+        } catch {
+            return url ?? "";
+        }
+    }
+
     function getRows(): ResultRow[] {
+        if (detail) {
+            return detail.utilities.map((data): ResultRow => ({ kind: "util", data }));
+        }
         return [
             ...utilities.map((data): ResultRow => ({ kind: "util", data })),
             ...actions.map((data): ResultRow => ({ kind: "action", data })),
             ...filtered.map((data): ResultRow => ({ kind: "tab", data })),
-            ...historyResults.map((data): ResultRow => ({ kind: "history", data })),
+            ...historyResults.flatMap((data): ResultRow[] => {
+                const row: ResultRow = { kind: "history", data };
+                if (!data.site || data.site.host !== expandedHost) {
+                    return [row];
+                }
+                const pages = data.site.pages.slice(0, EXPAND_LIMIT).map((page): ResultRow => ({ kind: "history", data: page, child: true }));
+                return [row, ...pages];
+            }),
         ];
     }
 
     function sectionTitle(kind: ResultRow["kind"]): string | null {
         if (kind === "util") {
-            return "Utilities";
+            return detail ? `Utilities \u00b7 ${detail.host}` : "Utilities";
         }
         if (kind === "action") {
             return "Clean up";
@@ -445,6 +538,9 @@ export default defineUnlistedScript(() => {
         const parts = ["\u2191\u2193 navigate"];
         if (row?.kind === "util") {
             parts.push(`Enter ${row.data.action === "copy" ? "copy" : "open"}`);
+            if (detail) {
+                parts.push("\u2190 back");
+            }
         } else if (row?.kind === "action") {
             parts.push(armedActionId === row.data.id ? "Enter again to close them" : "Enter close");
         } else if (row?.kind === "tab") {
@@ -453,7 +549,15 @@ export default defineUnlistedScript(() => {
                 parts.push(`${closeKeyLabel()} close tab`);
             }
         } else if (row?.kind === "history") {
-            parts.push("Enter open");
+            if (row.data.site) {
+                parts.push("Enter site", "Shift+Enter page");
+                parts.push(expandedHost === row.data.site.host ? "\u2192 utilities \u00a0\u2022\u00a0 \u2190 collapse" : "\u2192 pages");
+            } else {
+                parts.push("Enter open", "\u2192 utilities");
+                if (row.child) {
+                    parts.push("\u2190 collapse");
+                }
+            }
         } else {
             parts.push("Enter switch");
         }
@@ -539,13 +643,15 @@ export default defineUnlistedScript(() => {
         const text = document.createElement("div");
         text.className = "text";
 
+        const site = row.kind === "history" ? row.data.site : undefined;
+
         const title = document.createElement("div");
         title.className = "title";
-        title.textContent = row.data.title || "Untitled";
+        title.textContent = site ? site.host : row.data.title || "Untitled";
 
         const url = document.createElement("div");
         url.className = "url";
-        url.textContent = row.data.url || "";
+        url.textContent = site ? `Latest: ${row.data.title || row.data.url || ""}` : row.data.url || "";
 
         text.append(title, url);
         const parts: HTMLElement[] = [icon, text];
@@ -553,7 +659,12 @@ export default defineUnlistedScript(() => {
         if (row.kind === "history") {
             const badge = document.createElement("span");
             badge.className = "badge";
-            badge.textContent = "history";
+            if (site) {
+                const chevron = expandedHost === site.host ? "\u25be" : "\u25b8";
+                badge.textContent = `${site.count} ${site.count === 1 ? "page" : "pages"} ${chevron}`;
+            } else {
+                badge.textContent = row.child ? "page" : "history";
+            }
             parts.push(badge);
         }
 
@@ -634,6 +745,9 @@ export default defineUnlistedScript(() => {
             if (row.kind === "action" && armedActionId === row.data.id) {
                 el.classList.add("danger");
             }
+            if (row.kind === "history" && row.child) {
+                el.classList.add("child");
+            }
             if (row.kind === "util") {
                 el.append(...buildUtilRow(row.data));
             } else if (row.kind === "action") {
@@ -642,7 +756,7 @@ export default defineUnlistedScript(() => {
                 el.append(...buildEntryRow(row));
             }
 
-            el.addEventListener("click", () => activateRow(row));
+            el.addEventListener("click", (e) => activateRow(row, e.shiftKey));
             const capturedIndex = i;
             el.addEventListener("mouseenter", () => selectRow(capturedIndex));
 
@@ -653,7 +767,7 @@ export default defineUnlistedScript(() => {
         rowEls[selectedIndex]?.scrollIntoView({ block: "nearest" });
     }
 
-    async function activateRow(row: ResultRow) {
+    async function activateRow(row: ResultRow, exact = false) {
         if (row.kind === "util") {
             await runUtility(row.data);
         } else if (row.kind === "action") {
@@ -661,7 +775,7 @@ export default defineUnlistedScript(() => {
         } else if (row.kind === "tab") {
             await switchToTab(row.data.id);
         } else {
-            await openHistoryEntry(row.data.url);
+            await openHistoryEntry(row.data, exact);
         }
     }
 
@@ -779,7 +893,9 @@ export default defineUnlistedScript(() => {
         await browser.runtime.sendMessage({ action: "switchTab", tabId });
     }
 
-    async function openHistoryEntry(url: string | undefined) {
+    /** A site row opens the site's front page (the site sorts out login and redirects). Pass exact to open the last page instead. */
+    async function openHistoryEntry(entry: HistoryInfo, exact = false) {
+        const url = entry.site && !exact ? `${entry.site.origin}/` : entry.url;
         if (!url) {
             return;
         }
@@ -801,13 +917,39 @@ export default defineUnlistedScript(() => {
             }
         } else if (e.key === "Escape") {
             e.preventDefault();
-            hideOverlay();
+            if (detail) {
+                closeDetail();
+            } else {
+                hideOverlay();
+            }
         } else if (e.key === "Enter") {
             e.preventDefault();
             const rows = getRows();
             const target = rows[selectedIndex];
             if (target) {
-                activateRow(target);
+                activateRow(target, e.shiftKey);
+            }
+        } else if (e.key === "ArrowRight" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
+            // Only steals the key once the caret is at the end, where it would do nothing anyway.
+            const row = getRows()[selectedIndex];
+            const atEnd = !!input && input.selectionStart === input.value.length && input.selectionEnd === input.value.length;
+            if (row?.kind === "history" && atEnd) {
+                e.preventDefault();
+                // First press lists a site's pages, the next one opens the copy options.
+                if (row.data.site && expandedHost !== row.data.site.host) {
+                    expandSite(row.data);
+                } else {
+                    openDetail(row.data);
+                }
+            }
+        } else if (e.key === "ArrowLeft") {
+            const row = getRows()[selectedIndex];
+            if (detail) {
+                e.preventDefault();
+                closeDetail();
+            } else if (expandedHost && row?.kind === "history" && (row.child || row.data.site?.host === expandedHost)) {
+                e.preventDefault();
+                collapseSite();
             }
         } else if (e.key === "ArrowDown") {
             e.preventDefault();
@@ -989,6 +1131,8 @@ const STYLES = `
     transition: background 0.08s ease;
   }
   .row:hover { background: rgba(255, 255, 255, 0.05); }
+  .row.child { padding-left: 42px; }
+  .row.child .title { font-size: 13px; }
   .row.selected { background: color-mix(in srgb, var(--accent) 28%, transparent); }
 
   .section-header {

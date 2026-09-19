@@ -8,6 +8,8 @@ export interface TabSearchSettings {
     quickCopy: boolean;
     /** Show your tabs (most recent first) as soon as the overlay opens, before you type. */
     listOnOpen: boolean;
+    /** Collapse history results to one row per site. Enter opens the site's front page. */
+    groupHistory: boolean;
 }
 
 export const COMMAND_NAME = "_execute_action";
@@ -18,6 +20,7 @@ export const DEFAULT_SETTINGS: TabSearchSettings = {
     accent: "#3b82f6",
     quickCopy: false,
     listOnOpen: true,
+    groupHistory: true,
 };
 
 const STORAGE_KEY = "local:tabSearchSettings";

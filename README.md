@@ -18,6 +18,24 @@ browsing history in the background and lists close matches underneath,
 marked "history". Pick one and it opens in a new tab. This needs the
 `history` permission; searches never leave your machine.
 
+### History by site
+
+Some sites (dashboards, admin panels) fill your history with dozens of long
+links that carry IDs and session details. History results are grouped by
+site, so you get one row per site with a page count instead of a wall of URLs.
+
+- **Enter** opens the site's front page, and the site takes you where you
+  need to go (login, last workspace).
+- **Shift+Enter** opens the last page you visited on that site.
+- **Right arrow** (with the cursor at the end of the search box) on a site row
+  lists its pages underneath, most recent first. Pick one with the arrow keys
+  and Enter to open that exact page. **Left arrow** collapses them again.
+- **Right arrow** on a page (or on a site row that is already expanded) swaps
+  the list for that link's copy options: clean link, site link, domain, root
+  domain, Markdown link. **Left arrow** or **Esc** goes back.
+
+Turn this off with "Group history by site" in settings to list every page.
+
 Default shortcut: `Alt+Shift+K`. Shortcut, overlay position, and accent
 color are all configurable from the settings page.
 
@@ -53,7 +71,7 @@ copies it to the clipboard. Use the arrow keys to pick a different one.
 | ------------------ | ---------------------------------------------------------------------------------------------------- |
 | An email           | Domain, root domain, open the website, cleaned address (`Name <a@b.com>` and `mailto:` are handled) |
 | A list of emails   | Unique domains, one per line, plus a cleaned email list                                              |
-| A link             | Link without tracking parameters, no query or hash, domain, root domain, Markdown link, open the clean link, open in the Wayback Machine |
+| A link             | Link without tracking parameters, no query or hash, site link (no path), domain, root domain, Markdown link, open the clean link, open in the Wayback Machine |
 
 Link cleaning removes `utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_eid`, and
 similar click ids, unwraps redirect links (Google `/url?q=`, Outlook

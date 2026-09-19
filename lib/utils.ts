@@ -398,6 +398,53 @@ export function stripQueryAndHash(url: string): string {
 }
 
 /* -------------------------------------------------------------------------- */
+/* History grouping                                                           */
+/* -------------------------------------------------------------------------- */
+
+export interface SiteGroup<T> {
+    /** Hostname without "www." (and with the port, if there is one). Falls back to the raw URL. */
+    host: string;
+    /** Front page of the site, e.g. "https://app.example.com". Null when the URL isn't a normal web address. */
+    origin: string | null;
+    /** How many entries were folded into this group. */
+    count: number;
+    /** The most recently visited entry of the group. */
+    latest: T;
+    /** Every entry in the group, in the order they came in. */
+    items: T[];
+}
+
+/**
+ * Folds history entries into one group per site. Groups come out in the
+ * order their first entry appeared, so a ranked list stays ranked. Entries
+ * that aren't normal web addresses stay on their own.
+ */
+export function groupBySite<T extends { url?: string; lastVisitTime: number }>(items: T[]): SiteGroup<T>[] {
+    const groups = new Map<string, SiteGroup<T>>();
+    for (const item of items) {
+        if (!item.url) {
+            continue;
+        }
+        const parsed = parseUrlInput(item.url);
+        const key = parsed ? stripWww(parsed.host.toLowerCase()) : item.url;
+        const origin = parsed ? parsed.origin : null;
+
+        const existing = groups.get(key);
+        if (!existing) {
+            groups.set(key, { host: key, origin, count: 1, latest: item, items: [item] });
+            continue;
+        }
+        existing.count++;
+        existing.items.push(item);
+        if (item.lastVisitTime > existing.latest.lastVisitTime) {
+            existing.latest = item;
+            existing.origin = origin;
+        }
+    }
+    return [...groups.values()];
+}
+
+/* -------------------------------------------------------------------------- */
 /* Utility rows for the overlay                                               */
 /* -------------------------------------------------------------------------- */
 
@@ -468,6 +515,10 @@ function buildUrlRows(clean: string, removed: string[], tabs: TabLike[]): UtilAc
     const bare = stripQueryAndHash(clean);
     if (bare !== clean && bare !== `${clean}/`) {
         actions.push({ id: "url-bare", label: "Without query and hash", value: bare, action: "copy" });
+    }
+
+    if (parsed.pathname !== "/") {
+        actions.push({ id: "url-site", label: "Site link, no path", value: `${parsed.origin}/`, action: "copy" });
     }
 
     actions.push({ id: "url-domain", label: "Domain", value: host, action: "copy" });

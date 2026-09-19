@@ -266,7 +266,7 @@
                 top: 50%;
                 transform: translate(-50%, -50%);
                 width: 88%;
-                max-width: 380px;
+                max-width: 400px;
                 border-radius: 12px;
                 background: rgba(30, 32, 37, 0.92);
                 border: 1px solid var(--border-strong);
@@ -350,6 +350,12 @@
             }
             .demo-row.selected {
                 background: rgba(var(--accent-rgb), 0.18);
+            }
+            .demo-row.child {
+                padding-left: 32px;
+            }
+            .demo-row.child .title {
+                font-size: 12px;
             }
             .demo-empty {
                 padding: 26px 15px;
@@ -767,6 +773,7 @@
                 </a>
                 <div class="nav-links">
                     <a href="#how">How it works</a>
+                    <a href="#history">History</a>
                     <a href="#utilities">Utilities</a>
                     <a href="#cleanup">Clean up</a>
                     <a href="#customize">Customize</a>
@@ -888,6 +895,13 @@
                         <button class="demo-chip" type="button" data-value="fi">
                             a tab search
                         </button>
+                        <button
+                            class="demo-chip"
+                            type="button"
+                            data-value="acme"
+                        >
+                            history by site
+                        </button>
                     </div>
                 </div>
             </section>
@@ -943,9 +957,9 @@
                             <h3>No match? Check history</h3>
                             <p>
                                 If nothing open fits, Tabdrift searches your
-                                history and lists close matches underneath,
-                                marked "history". Pick one and it opens in a new
-                                tab.
+                                history and lists close matches underneath, one
+                                row per site and marked "history". Pick one and
+                                it opens in a new tab.
                             </p>
                         </div>
                     </div>
@@ -961,6 +975,86 @@
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section class="block" id="history">
+                <div class="block-head">
+                    <h2>History, one row per site</h2>
+                    <p>
+                        Dashboards and admin panels fill your history with long
+                        links full of IDs and session details. Tabdrift groups
+                        history results by site, so you get one row with a page
+                        count instead of a wall of URLs.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>One row per site</h3>
+                        <p>
+                            Every page on the same site folds into a single row
+                            that shows the site, how many pages matched and the
+                            title of the latest one.
+                        </p>
+                        <div class="code-block">
+                            <span class="strike"
+                                >app.example.com/v2/location/8fK2xQ/invoices</span
+                            ><br />
+                            <span class="strike"
+                                >app.example.com/v2/location/8fK2xQ/contacts</span
+                            ><br />
+                            <span class="keep">app.example.com</span>
+                            <span class="dim">4 pages</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Open the site, or the exact page</h3>
+                        <p>
+                            Enter opens the site's front page and the site takes
+                            you where you need to go, like login or your last
+                            workspace. Shift+Enter opens the last page you
+                            visited there.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Enter</span>
+                                <span>open the site's front page</span>
+                            </div>
+                            <div>
+                                <span class="keycap">Shift</span>+<span
+                                    class="keycap"
+                                    >Enter</span
+                                >
+                                <span>open the last page</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Expand it, copy from it</h3>
+                        <p>
+                            Right arrow lists the pages under a site, most
+                            recent first. Right arrow again on a page swaps the
+                            list for its copy options. Left arrow goes back.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">&rarr;</span>
+                                <span>list the pages, then copy options</span>
+                            </div>
+                            <div>
+                                <span class="keycap">&larr;</span>
+                                <span>collapse, or go back</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    The pages listed under a site are the ones that match what
+                    you typed. The copy options are the same ones a pasted link
+                    gets: clean link, site link with no path, domain, root
+                    domain and a Markdown link. Prefer the plain list? Turn off
+                    Group history by site in settings. History is searched
+                    locally and nothing leaves your browser.
+                </p>
             </section>
 
             <section class="block" id="utilities">
@@ -1032,11 +1126,11 @@
                 </div>
                 <p class="util-note">
                     A pasted link also gets a Markdown link, a version without
-                    query and hash, its domain and root domain, an
-                    open-in-new-tab row and a Wayback Machine lookup. Everything
-                    runs locally and nothing leaves your browser. Copying uses
-                    the clipboardWrite permission, and the right-click item uses
-                    contextMenus.
+                    query and hash, a site link with no path, its domain and
+                    root domain, an open-in-new-tab row and a Wayback Machine
+                    lookup. Everything runs locally and nothing leaves your
+                    browser. Copying uses the clipboardWrite permission, and the
+                    right-click item uses contextMenus.
                 </p>
             </section>
 
@@ -1111,8 +1205,8 @@
                     <h2>Make it yours</h2>
                     <p>
                         Pick an accent color and where the overlay sits on
-                        screen, and switch Quick copy and the tab list on or
-                        off, right from the same settings panel.
+                        screen, and switch Quick copy, the tab list and history
+                        grouping on or off, right from the same settings panel.
                     </p>
                 </div>
                 <div class="customize-grid">
@@ -1252,6 +1346,22 @@
                 ];
                 var HISTORY = [
                     {
+                        title: "Invoices | AcmeCRM",
+                        url: "app.acmecrm.com/v2/location/8fK2xQ/payments/invoices",
+                    },
+                    {
+                        title: "Contacts | AcmeCRM",
+                        url: "app.acmecrm.com/v2/location/8fK2xQ/contacts",
+                    },
+                    {
+                        title: "Pipelines | AcmeCRM",
+                        url: "app.acmecrm.com/v2/location/8fK2xQ/opportunities",
+                    },
+                    {
+                        title: "Sign in | AcmeCRM",
+                        url: "app.acmecrm.com/login?session=3fa9c1",
+                    },
+                    {
                         title: "abdullahwaqar/tabdrift — GitHub",
                         url: "github.com/abdullahwaqar/tabdrift",
                     },
@@ -1274,6 +1384,8 @@
                 const hint = document.getElementById("demo-hint");
                 let filtered = [];
                 let filteredHistory = [];
+                let expandedHost = null;
+                let detail = null;
                 let utils = [];
                 let rowEls = [];
                 let selectedIndex = 0;
@@ -1449,8 +1561,15 @@
                                     ? `Clean link, removed ${result.removed.join(", ")}`
                                     : "Clean link (no trackers found)",
                             },
-                            { value: result.host, label: "Domain" },
                         ];
+                        const parsedClean = new URL(result.url);
+                        if (parsedClean.pathname !== "/") {
+                            list.push({
+                                value: `${parsedClean.origin}/`,
+                                label: "Site link, no path",
+                            });
+                        }
+                        list.push({ value: result.host, label: "Domain" });
                         if (urlRoot !== result.host) {
                             list.push({ value: urlRoot, label: "Root domain" });
                         }
@@ -1466,27 +1585,75 @@
                 const COPY_ICON =
                     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
 
+                const groupHistory = (items) => {
+                    const groups = [];
+                    const byHost = {};
+                    items.forEach((item) => {
+                        const host = item.url.split("/")[0];
+                        if (!byHost[host]) {
+                            byHost[host] = { host: host, pages: [] };
+                            groups.push(byHost[host]);
+                        }
+                        byHost[host].pages.push(item);
+                    });
+                    return groups;
+                };
+
                 const allRows = () => {
-                    return utils
+                    if (detail) {
+                        return detail.rows.map((data) => ({
+                            kind: "util",
+                            data: data,
+                        }));
+                    }
+                    const rows = utils
                         .map((data) => ({ kind: "util", data: data }))
                         .concat(
                             filtered.map((data) => ({
                                 kind: "tab",
                                 data: data,
                             })),
-                        )
-                        .concat(
-                            filteredHistory.map((data) => ({
-                                kind: "history",
-                                data: data,
-                            })),
                         );
+                    filteredHistory.forEach((group) => {
+                        rows.push({ kind: "site", data: group });
+                        if (group.host === expandedHost) {
+                            group.pages.slice(0, 10).forEach((page) => {
+                                rows.push({ kind: "page", data: page });
+                            });
+                        }
+                    });
+                    return rows;
                 };
 
                 const updateHint = () => {
                     const row = allRows()[selectedIndex];
-                    const verb = row && row.kind === "util" ? "copy" : "switch";
-                    hint.textContent = `\u2191\u2193 navigate \u00a0\u2022\u00a0 Enter ${verb}`;
+                    const dot = " \u00a0\u2022\u00a0 ";
+                    let parts = ["\u2191\u2193 navigate", "Enter switch"];
+                    if (row && row.kind === "util") {
+                        parts = detail
+                            ? ["Enter copy", "\u2190 back"]
+                            : ["\u2191\u2193 navigate", "Enter copy"];
+                    } else if (row && row.kind === "site") {
+                        parts =
+                            expandedHost === row.data.host
+                                ? [
+                                      "Enter site",
+                                      "\u2192 utilities",
+                                      "\u2190 collapse",
+                                  ]
+                                : [
+                                      "Enter site",
+                                      "Shift+Enter page",
+                                      "\u2192 pages",
+                                  ];
+                    } else if (row && row.kind === "page") {
+                        parts = [
+                            "Enter open",
+                            "\u2192 utilities",
+                            "\u2190 collapse",
+                        ];
+                    }
+                    hint.textContent = parts.join(dot);
                 };
 
                 const flashHint = (text) => {
@@ -1530,7 +1697,7 @@
                     updateHint();
                 };
 
-                const activate = (index) => {
+                const activate = (index, exact) => {
                     const row = allRows()[index];
                     if (!row) {
                         return;
@@ -1539,8 +1706,55 @@
                         copyUtility(row.data);
                         return;
                     }
+                    if (row.kind === "site") {
+                        flashHint(
+                            exact
+                                ? `Opens https://${shorten(row.data.pages[0].url)}`
+                                : `Opens https://${row.data.host}/ in a new tab`,
+                        );
+                        return;
+                    }
+                    if (row.kind === "page") {
+                        flashHint(`Opens https://${shorten(row.data.url)}`);
+                        return;
+                    }
                     input.value = row.data.title;
                     filter(input.value);
+                };
+
+                const openDetail = (row) => {
+                    const page =
+                        row.kind === "site" ? row.data.pages[0] : row.data;
+                    const host = page.url.split("/")[0];
+                    const rows = buildUtilities(`https://${page.url}`);
+                    if (rows.length === 0) {
+                        return;
+                    }
+                    detail = {
+                        host: host,
+                        rows: rows,
+                        returnIndex: selectedIndex,
+                    };
+                    selectedIndex = 0;
+                    render();
+                };
+
+                const closeDetail = () => {
+                    selectedIndex = detail.returnIndex;
+                    detail = null;
+                    render();
+                };
+
+                const collapseSite = () => {
+                    const host = expandedHost;
+                    expandedHost = null;
+                    const at = allRows().findIndex(
+                        (r) => r.kind === "site" && r.data.host === host,
+                    );
+                    if (at !== -1) {
+                        selectedIndex = at;
+                    }
+                    render();
                 };
 
                 const render = () => {
@@ -1557,13 +1771,19 @@
                         updateHint();
                         return;
                     }
-                    let lastKind = null;
+                    let lastSection = null;
                     rows.forEach((row, i) => {
-                        if (row.kind !== lastKind) {
+                        const section =
+                            row.kind === "site" || row.kind === "page"
+                                ? "history"
+                                : row.kind;
+                        if (section !== lastSection) {
                             let heading = null;
-                            if (row.kind === "util") {
-                                heading = "Utilities";
-                            } else if (row.kind === "history") {
+                            if (section === "util") {
+                                heading = detail
+                                    ? `Utilities \u00b7 ${detail.host}`
+                                    : "Utilities";
+                            } else if (section === "history") {
                                 heading = "From history";
                             } else if (utils.length > 0) {
                                 heading = "Open tabs";
@@ -1574,7 +1794,7 @@
                                 header.textContent = heading;
                                 results.appendChild(header);
                             }
-                            lastKind = row.kind;
+                            lastSection = section;
                         }
 
                         const el = document.createElement("div");
@@ -1603,33 +1823,57 @@
                             el.appendChild(icon);
                             el.appendChild(text);
                             el.appendChild(copyBadge);
-                        } else {
-                            if (row.kind === "tab") {
-                                const favicon = document.createElement("div");
-                                favicon.className = "favicon";
-                                favicon.style.setProperty(
-                                    "--swatch",
-                                    faviconColor(row.data.title),
-                                );
-                                favicon.textContent = row.data.title
-                                    .charAt(0)
-                                    .toUpperCase();
-                                el.appendChild(favicon);
+                        } else if (row.kind === "site" || row.kind === "page") {
+                            const text = document.createElement("div");
+                            text.className = "text";
+                            const hTitle = document.createElement("div");
+                            hTitle.className = "title";
+                            const hSub = document.createElement("div");
+                            hSub.className = "sub";
+                            const badge = document.createElement("span");
+                            badge.className = "demo-badge";
+
+                            if (row.kind === "site") {
+                                const count = row.data.pages.length;
+                                const chevron =
+                                    expandedHost === row.data.host
+                                        ? "\u25be"
+                                        : "\u25b8";
+                                hTitle.textContent = row.data.host;
+                                hSub.textContent = `Latest: ${row.data.pages[0].title}`;
+                                badge.textContent = `${count} ${count === 1 ? "page" : "pages"} ${chevron}`;
+                            } else {
+                                el.classList.add("child");
+                                hTitle.textContent = row.data.title;
+                                hSub.textContent = row.data.url;
+                                badge.textContent = "page";
                             }
+                            text.appendChild(hTitle);
+                            text.appendChild(hSub);
+                            el.appendChild(text);
+                            el.appendChild(badge);
+                        } else {
+                            const favicon = document.createElement("div");
+                            favicon.className = "favicon";
+                            favicon.style.setProperty(
+                                "--swatch",
+                                faviconColor(row.data.title),
+                            );
+                            favicon.textContent = row.data.title
+                                .charAt(0)
+                                .toUpperCase();
+                            el.appendChild(favicon);
+
                             const title = document.createElement("div");
                             title.className = "title";
                             title.textContent = row.data.title;
                             el.appendChild(title);
-                            if (row.kind === "history") {
-                                const badge = document.createElement("span");
-                                badge.className = "demo-badge";
-                                badge.textContent = "history";
-                                el.appendChild(badge);
-                            }
                         }
 
                         el.addEventListener("mouseenter", () => select(i));
-                        el.addEventListener("click", () => activate(i));
+                        el.addEventListener("click", (e) =>
+                            activate(i, e.shiftKey),
+                        );
                         results.appendChild(el);
                         rowEls.push(el);
                     });
@@ -1646,13 +1890,17 @@
                           )
                         : [];
                     filteredHistory = q
-                        ? HISTORY.filter(
-                              (h) =>
-                                  h.title.toLowerCase().indexOf(q) !== -1 ||
-                                  h.url.toLowerCase().indexOf(q) !== -1,
+                        ? groupHistory(
+                              HISTORY.filter(
+                                  (h) =>
+                                      h.title.toLowerCase().indexOf(q) !== -1 ||
+                                      h.url.toLowerCase().indexOf(q) !== -1,
+                              ),
                           )
                         : [];
                     utils = q ? buildUtilities(query) : [];
+                    expandedHost = null;
+                    detail = null;
                     selectedIndex = 0;
                     render();
                 };
@@ -1662,6 +1910,7 @@
                 });
                 input.addEventListener("keydown", (e) => {
                     const total = allRows().length;
+                    const row = allRows()[selectedIndex];
                     if (e.key === "ArrowDown" && total) {
                         e.preventDefault();
                         select(Math.min(selectedIndex + 1, total - 1));
@@ -1676,7 +1925,44 @@
                         });
                     } else if (e.key === "Enter" && total) {
                         e.preventDefault();
-                        activate(selectedIndex);
+                        activate(selectedIndex, e.shiftKey);
+                    } else if (e.key === "ArrowRight") {
+                        const atEnd =
+                            input.selectionStart === input.value.length &&
+                            input.selectionEnd === input.value.length;
+                        if (
+                            atEnd &&
+                            row &&
+                            (row.kind === "site" || row.kind === "page")
+                        ) {
+                            e.preventDefault();
+                            if (
+                                row.kind === "site" &&
+                                expandedHost !== row.data.host
+                            ) {
+                                expandedHost = row.data.host;
+                                render();
+                            } else {
+                                openDetail(row);
+                            }
+                        }
+                    } else if (e.key === "ArrowLeft") {
+                        if (detail) {
+                            e.preventDefault();
+                            closeDetail();
+                        } else if (
+                            expandedHost &&
+                            row &&
+                            (row.kind === "page" ||
+                                (row.kind === "site" &&
+                                    row.data.host === expandedHost))
+                        ) {
+                            e.preventDefault();
+                            collapseSite();
+                        }
+                    } else if (e.key === "Escape" && detail) {
+                        e.preventDefault();
+                        closeDetail();
                     }
                 });
                 input.value = "fi";

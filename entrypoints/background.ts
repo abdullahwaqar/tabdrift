@@ -5,6 +5,8 @@ import { cleanUrl } from "../lib/utils";
 
 const COPY_CLEAN_URL_COMMAND = "copy-clean-url";
 const MENU_COPY_CLEAN_LINK = "tabdrift-copy-clean-link";
+const DEFAULT_HISTORY_RESULTS = 25;
+const MAX_HISTORY_RESULTS = 300;
 
 export default defineBackground(() => {
     applyStoredShortcut();
@@ -96,8 +98,11 @@ export default defineBackground(() => {
 
         if (message?.action === "searchHistory") {
             const query = typeof message.query === "string" ? message.query : "";
+            // Grouping by site needs a deeper pool, or one busy site fills every slot.
+            const requested = Number.isInteger(message.maxResults) ? message.maxResults : DEFAULT_HISTORY_RESULTS;
+            const maxResults = Math.max(1, Math.min(requested, MAX_HISTORY_RESULTS));
             browser.history
-                .search({ text: query, maxResults: 25, startTime: 0 })
+                .search({ text: query, maxResults, startTime: 0 })
                 .then((items) => {
                     const results = items
                         .filter((item) => !!item.url)
