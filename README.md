@@ -36,6 +36,20 @@ site, so you get one row per site with a page count instead of a wall of URLs.
 
 Turn this off with "Group history by site" in settings to list every page.
 
+### Open several results from one search
+
+**Ctrl+Enter** (**Cmd+Enter** on a Mac) opens the highlighted history result
+in a background tab and keeps the overlay open, with your search and
+highlight where they were. Arrow down and press it again to open the next
+one. It works on history rows and on the "open" rows under Utilities, and
+Shift+Ctrl+Enter opens a site's last page instead of its front page.
+Clicking a row with Ctrl held does the same. Switching to an open tab always
+closes the overlay.
+
+Turn on "Keep overlay open after opening a link" in settings to swap the two
+keys: Enter opens in the background and stays, and Ctrl+Enter opens and
+closes.
+
 Default shortcut: `Alt+Shift+K`. Shortcut, overlay position, and accent
 color are all configurable from the settings page.
 

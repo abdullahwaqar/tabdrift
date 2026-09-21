@@ -90,6 +90,7 @@ export default defineUnlistedScript(() => {
     let actions: ActionRow[] = [];
     let armedActionId: ActionRow["id"] | null = null;
     let closedCount = 0;
+    let openedCount = 0;
     let hintFlash: string | null = null;
     let hintFlashTimer: ReturnType<typeof setTimeout> | null = null;
     let selectedIndex = 0;
@@ -250,6 +251,7 @@ export default defineUnlistedScript(() => {
 
         tabs = await browser.runtime.sendMessage({ action: "getTabs" });
         closedCount = 0;
+        openedCount = 0;
         hintFlash = null;
         historyResults = [];
         filterTabs(input?.value ?? "");
@@ -521,6 +523,27 @@ export default defineUnlistedScript(() => {
         return "Ctrl+D";
     }
 
+    /** The key that flips whether opening a link keeps the overlay open. Cmd on Mac, Ctrl elsewhere. */
+    function flipKeyLabel(): string {
+        return IS_MAC ? "\u2318" : "Ctrl+";
+    }
+
+    function isFlipKey(e: { ctrlKey: boolean; metaKey: boolean }): boolean {
+        return IS_MAC ? e.metaKey : e.ctrlKey;
+    }
+
+    /** With the setting off the flip key keeps the overlay open, with it on the flip key closes it. */
+    function shouldStayOpen(flip: boolean): boolean {
+        return (settings?.keepOpenOnOpen === true) !== flip;
+    }
+
+    /** Key hints for opening a link. `label` names what Enter opens. */
+    function openHints(label: string): [string, string] {
+        return settings?.keepOpenOnOpen
+            ? [`Enter ${label} & stay`, `${flipKeyLabel()}Enter open & close`]
+            : [`Enter ${label}`, `${flipKeyLabel()}Enter keep open`];
+    }
+
     function reopenKeyLabel(): string {
         return IS_MAC ? "\u2318\u21e7T" : "Ctrl+Shift+T";
     }
@@ -537,7 +560,11 @@ export default defineUnlistedScript(() => {
         const dot = " \u00a0\u2022\u00a0 ";
         const parts = ["\u2191\u2193 navigate"];
         if (row?.kind === "util") {
-            parts.push(`Enter ${row.data.action === "copy" ? "copy" : "open"}`);
+            if (row.data.action === "copy") {
+                parts.push("Enter copy");
+            } else {
+                parts.push(...openHints("open"));
+            }
             if (detail) {
                 parts.push("\u2190 back");
             }
@@ -550,10 +577,11 @@ export default defineUnlistedScript(() => {
             }
         } else if (row?.kind === "history") {
             if (row.data.site) {
-                parts.push("Enter site", "Shift+Enter page");
+                const [enter, flip] = openHints("site");
+                parts.push(enter, "Shift+Enter page", flip);
                 parts.push(expandedHost === row.data.site.host ? "\u2192 utilities \u00a0\u2022\u00a0 \u2190 collapse" : "\u2192 pages");
             } else {
-                parts.push("Enter open", "\u2192 utilities");
+                parts.push(...openHints("open"), "\u2192 utilities");
                 if (row.child) {
                     parts.push("\u2190 collapse");
                 }
@@ -756,7 +784,7 @@ export default defineUnlistedScript(() => {
                 el.append(...buildEntryRow(row));
             }
 
-            el.addEventListener("click", (e) => activateRow(row, e.shiftKey));
+            el.addEventListener("click", (e) => activateRow(row, e.shiftKey, isFlipKey(e)));
             const capturedIndex = i;
             el.addEventListener("mouseenter", () => selectRow(capturedIndex));
 
@@ -767,15 +795,16 @@ export default defineUnlistedScript(() => {
         rowEls[selectedIndex]?.scrollIntoView({ block: "nearest" });
     }
 
-    async function activateRow(row: ResultRow, exact = false) {
+    async function activateRow(row: ResultRow, exact = false, flip = false) {
+        const stay = shouldStayOpen(flip);
         if (row.kind === "util") {
-            await runUtility(row.data);
+            await runUtility(row.data, stay);
         } else if (row.kind === "action") {
             await runAction(row.data);
         } else if (row.kind === "tab") {
             await switchToTab(row.data.id);
         } else {
-            await openHistoryEntry(row.data, exact);
+            await openHistoryEntry(row.data, exact, stay);
         }
     }
 
@@ -837,8 +866,12 @@ export default defineUnlistedScript(() => {
         await closeTabs(action.tabs);
     }
 
-    async function runUtility(action: UtilAction) {
+    async function runUtility(action: UtilAction, stay = false) {
         if (action.action === "open") {
+            if (stay) {
+                await openInBackground(action.value, action.display ?? action.value);
+                return;
+            }
             hideOverlay();
             await browser.runtime.sendMessage({ action: "openHistoryUrl", url: action.value });
             return;
@@ -888,15 +921,30 @@ export default defineUnlistedScript(() => {
         toastTimer = setTimeout(() => toastEl?.classList.remove("show"), TOAST_MS);
     }
 
+    /** Opens a link in a background tab and leaves the overlay, the query and the highlight as they are. */
+    async function openInBackground(url: string, label: string) {
+        const reply = (await browser.runtime.sendMessage({ action: "openHistoryUrl", url, background: true })) as { success?: boolean } | undefined;
+        if (!reply?.success) {
+            flashHint("Couldn't open that link");
+            return;
+        }
+        openedCount += 1;
+        flashHint(`\u2713 Opened \u201c${label.slice(0, 32)}\u201d in the background (${openedCount} so far)`);
+    }
+
     async function switchToTab(tabId: number) {
         hideOverlay();
         await browser.runtime.sendMessage({ action: "switchTab", tabId });
     }
 
     /** A site row opens the site's front page (the site sorts out login and redirects). Pass exact to open the last page instead. */
-    async function openHistoryEntry(entry: HistoryInfo, exact = false) {
+    async function openHistoryEntry(entry: HistoryInfo, exact = false, stay = false) {
         const url = entry.site && !exact ? `${entry.site.origin}/` : entry.url;
         if (!url) {
+            return;
+        }
+        if (stay) {
+            await openInBackground(url, entry.title || url);
             return;
         }
         hideOverlay();
@@ -927,7 +975,7 @@ export default defineUnlistedScript(() => {
             const rows = getRows();
             const target = rows[selectedIndex];
             if (target) {
-                activateRow(target, e.shiftKey);
+                activateRow(target, e.shiftKey, isFlipKey(e));
             }
         } else if (e.key === "ArrowRight" && !e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
             // Only steals the key once the caret is at the end, where it would do nothing anyway.
@@ -1217,7 +1265,8 @@ const STYLES = `
     color: rgba(255, 255, 255, 0.4);
     border-top: 1px solid rgba(255, 255, 255, 0.08);
   }
-  #brand { color: var(--accent); font-weight: 600; }
+  #hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #brand { color: var(--accent); font-weight: 600; flex-shrink: 0; padding-left: 12px; }
 
   #settings-btn {
     background: none;

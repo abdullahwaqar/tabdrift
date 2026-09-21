@@ -9,6 +9,7 @@ const accentValue = document.getElementById("accent-value") as HTMLSpanElement;
 const quickCopyInput = document.getElementById("quick-copy") as HTMLInputElement;
 const listOnOpenInput = document.getElementById("list-on-open") as HTMLInputElement;
 const groupHistoryInput = document.getElementById("group-history") as HTMLInputElement;
+const keepOpenInput = document.getElementById("keep-open") as HTMLInputElement;
 const cleanShortcut = document.getElementById("clean-shortcut") as HTMLDivElement;
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const status = document.getElementById("status") as HTMLDivElement;
@@ -32,6 +33,7 @@ async function init() {
     quickCopyInput.checked = settings.quickCopy;
     listOnOpenInput.checked = settings.listOnOpen;
     groupHistoryInput.checked = settings.groupHistory;
+    keepOpenInput.checked = settings.keepOpenOnOpen;
 
     // Show whatever key the clean-link command is bound to right now.
     const commands = await browser.commands.getAll();
@@ -127,6 +129,7 @@ saveBtn.addEventListener("click", async () => {
         quickCopy: quickCopyInput.checked,
         listOnOpen: listOnOpenInput.checked,
         groupHistory: groupHistoryInput.checked,
+        keepOpenOnOpen: keepOpenInput.checked,
     };
 
     await saveSettings(settings);

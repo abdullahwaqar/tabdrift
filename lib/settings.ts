@@ -10,6 +10,11 @@ export interface TabSearchSettings {
     listOnOpen: boolean;
     /** Collapse history results to one row per site. Enter opens the site's front page. */
     groupHistory: boolean;
+    /**
+     * Opening a history result or an "open" utility keeps the overlay open and opens the link in a background tab.
+     * Ctrl (Cmd on Mac) flips this for a single open.
+     */
+    keepOpenOnOpen: boolean;
 }
 
 export const COMMAND_NAME = "_execute_action";
@@ -21,6 +26,7 @@ export const DEFAULT_SETTINGS: TabSearchSettings = {
     quickCopy: false,
     listOnOpen: true,
     groupHistory: true,
+    keepOpenOnOpen: false,
 };
 
 const STORAGE_KEY = "local:tabSearchSettings";

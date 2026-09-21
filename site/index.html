@@ -390,6 +390,14 @@
             .demo-footer b {
                 color: var(--accent);
                 font-weight: 600;
+                flex-shrink: 0;
+                padding-left: 12px;
+            }
+            #demo-hint {
+                min-width: 0;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
 
             .demo-col {
@@ -774,6 +782,7 @@
                 <div class="nav-links">
                     <a href="#how">How it works</a>
                     <a href="#history">History</a>
+                    <a href="#open-many">Open several</a>
                     <a href="#utilities">Utilities</a>
                     <a href="#cleanup">Clean up</a>
                     <a href="#customize">Customize</a>
@@ -1057,6 +1066,86 @@
                 </p>
             </section>
 
+            <section class="block" id="open-many">
+                <div class="block-head">
+                    <h2>Open several results at once</h2>
+                    <p>
+                        Need a handful of pages from one search? Ctrl+Enter
+                        opens the highlighted result in a background tab and
+                        leaves the overlay, your search and your place in the
+                        list exactly as they were.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>Open and stay</h3>
+                        <p>
+                            The link opens in a new background tab, so the page
+                            you're on doesn't change. A count in the footer
+                            tells you how many you've opened so far.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Ctrl</span>+<span
+                                    class="keycap"
+                                    >Enter</span
+                                >
+                                <span>open in the background, stay</span>
+                            </div>
+                            <div>
+                                <span class="keycap">Enter</span>
+                                <span>open and close, as before</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Search once, open many</h3>
+                        <p>
+                            Arrow down, press it again, repeat. Ten pages from
+                            one search is ten taps, not ten searches.
+                        </p>
+                        <div class="code-block">
+                            <span class="hl">docs</span><br />
+                            <span class="keep">Ctrl+Enter</span>
+                            <span class="dim">Getting started</span><br />
+                            <span class="keep">&darr; Ctrl+Enter</span>
+                            <span class="dim">API reference</span><br />
+                            <span class="keep">&darr; Ctrl+Enter</span>
+                            <span class="dim">Changelog</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Or flip it</h3>
+                        <p>
+                            Want the overlay to stay open by default? Turn on
+                            Keep overlay open after opening a link in settings
+                            and the two keys swap.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Enter</span>
+                                <span>open in the background, stay</span>
+                            </div>
+                            <div>
+                                <span class="keycap">Ctrl</span>+<span
+                                    class="keycap"
+                                    >Enter</span
+                                >
+                                <span>open and close</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    It works on history rows and on the open rows under
+                    Utilities (open website, open clean link, Wayback Machine),
+                    and Ctrl-clicking a row does the same. Add Shift to open a
+                    site's last page instead of its front page. On a Mac, use
+                    Cmd instead of Ctrl. Switching to an open tab always closes
+                    the overlay, because you're leaving that page.
+                </p>
+            </section>
+
             <section class="block" id="utilities">
                 <div class="block-head">
                     <h2>Emails and links</h2>
@@ -1205,8 +1294,9 @@
                     <h2>Make it yours</h2>
                     <p>
                         Pick an accent color and where the overlay sits on
-                        screen, and switch Quick copy, the tab list and history
-                        grouping on or off, right from the same settings panel.
+                        screen, and switch Quick copy, the tab list, history
+                        grouping and keeping the overlay open after opening a
+                        link on or off, right from the same settings panel.
                     </p>
                 </div>
                 <div class="customize-grid">
@@ -1625,6 +1715,11 @@
                     return rows;
                 };
 
+                const MAC = /mac/i.test(navigator.platform);
+                const flipLabel = MAC ? "\u2318" : "Ctrl+";
+                const isFlip = (e) => (MAC ? e.metaKey : e.ctrlKey);
+                let openedCount = 0;
+
                 const updateHint = () => {
                     const row = allRows()[selectedIndex];
                     const dot = " \u00a0\u2022\u00a0 ";
@@ -1638,17 +1733,20 @@
                             expandedHost === row.data.host
                                 ? [
                                       "Enter site",
+                                      `${flipLabel}Enter keep open`,
                                       "\u2192 utilities",
                                       "\u2190 collapse",
                                   ]
                                 : [
                                       "Enter site",
                                       "Shift+Enter page",
+                                      `${flipLabel}Enter keep open`,
                                       "\u2192 pages",
                                   ];
                     } else if (row && row.kind === "page") {
                         parts = [
                             "Enter open",
+                            `${flipLabel}Enter keep open`,
                             "\u2192 utilities",
                             "\u2190 collapse",
                         ];
@@ -1697,13 +1795,24 @@
                     updateHint();
                 };
 
-                const activate = (index, exact) => {
+                const activate = (index, exact, flip) => {
                     const row = allRows()[index];
                     if (!row) {
                         return;
                     }
                     if (row.kind === "util") {
                         copyUtility(row.data);
+                        return;
+                    }
+                    if (flip && (row.kind === "site" || row.kind === "page")) {
+                        const title =
+                            row.kind === "site"
+                                ? row.data.pages[0].title
+                                : row.data.title;
+                        openedCount += 1;
+                        flashHint(
+                            `\u2713 Opened \u201c${title.slice(0, 32)}\u201d in the background (${openedCount} so far)`,
+                        );
                         return;
                     }
                     if (row.kind === "site") {
@@ -1872,7 +1981,7 @@
 
                         el.addEventListener("mouseenter", () => select(i));
                         el.addEventListener("click", (e) =>
-                            activate(i, e.shiftKey),
+                            activate(i, e.shiftKey, isFlip(e)),
                         );
                         results.appendChild(el);
                         rowEls.push(el);
@@ -1882,6 +1991,9 @@
 
                 const filter = (query) => {
                     const q = query.trim().toLowerCase();
+                    if (!q) {
+                        openedCount = 0;
+                    }
                     filtered = q
                         ? TABS.filter(
                               (t) =>
@@ -1925,7 +2037,7 @@
                         });
                     } else if (e.key === "Enter" && total) {
                         e.preventDefault();
-                        activate(selectedIndex, e.shiftKey);
+                        activate(selectedIndex, e.shiftKey, isFlip(e));
                     } else if (e.key === "ArrowRight") {
                         const atEnd =
                             input.selectionStart === input.value.length &&

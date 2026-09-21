@@ -123,10 +123,12 @@ export default defineBackground(() => {
         }
 
         if (message?.action === "openHistoryUrl") {
+            // A background open leaves the current tab and window alone, so the overlay stays where it is.
+            const background = message.background === true;
             browser.tabs
-                .create({ url: message.url, active: true })
+                .create({ url: message.url, active: !background })
                 .then((tab) => {
-                    if (tab.windowId !== undefined) {
+                    if (!background && tab.windowId !== undefined) {
                         return browser.windows.update(tab.windowId, { focused: true });
                     }
                 })
