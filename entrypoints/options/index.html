@@ -290,6 +290,57 @@
                     0 0 0 2px var(--bg),
                     0 0 0 4px var(--accent);
             }
+            /* search engine picker */
+            .segmented {
+                display: inline-flex;
+                padding: 3px;
+                gap: 2px;
+                border-radius: 9px;
+                background: var(--bg-raised);
+                border: 1px solid var(--border-strong);
+            }
+            .segmented button {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 5px 10px;
+                border: none;
+                border-radius: 6px;
+                background: none;
+                font: inherit;
+                font-size: 12.5px;
+                color: var(--text-dim);
+                cursor: pointer;
+                transition:
+                    background 0.12s ease,
+                    color 0.12s ease;
+            }
+            .segmented button:hover {
+                color: var(--text);
+            }
+            .segmented button[aria-checked="true"] {
+                background: var(--accent);
+                color: #fff;
+            }
+            .segmented button:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+            .segmented kbd {
+                font-family: var(--mono);
+                font-size: 11px;
+                opacity: 0.7;
+            }
+            .row-hint kbd {
+                font-family: var(--mono);
+                font-size: 11px;
+                padding: 0 4px;
+                border-radius: 4px;
+                background: var(--bg-raised);
+                border: 1px solid var(--border);
+                color: var(--text);
+            }
+
             #clean-shortcut {
                 display: flex;
                 align-items: center;
@@ -419,6 +470,29 @@
                     <div class="row-control accent-control">
                         <input id="accent-input" type="color" value="#3b82f6" />
                         <span id="accent-value">#3B82F6</span>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <span class="row-title" id="engine-label"
+                            >Search engine</span
+                        >
+                        <p class="row-hint">
+                            Used when you search from the overlay. Put
+                            <kbd>g</kbd>, <kbd>b</kbd> or <kbd>d</kbd> before or
+                            after a search to use Google, Bing or DuckDuckGo
+                            just this once, like <kbd>g esp32 pinout</kbd> or
+                            <kbd>esp32 pinout d</kbd>.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div
+                            id="engine-picker"
+                            class="segmented"
+                            role="radiogroup"
+                            aria-labelledby="engine-label"
+                        ></div>
                     </div>
                 </div>
 

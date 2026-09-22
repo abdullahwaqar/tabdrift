@@ -1,3 +1,6 @@
+import type { SearchEngineId } from "./search";
+import { DEFAULT_ENGINE_ID } from "./search";
+
 export type OverlayPosition = "top" | "center" | "bottom";
 
 export interface TabSearchSettings {
@@ -15,6 +18,8 @@ export interface TabSearchSettings {
      * Ctrl (Cmd on Mac) flips this for a single open.
      */
     keepOpenOnOpen: boolean;
+    /** Engine used for plain searches. A one-letter key before or after the query picks another one. */
+    searchEngine: SearchEngineId;
 }
 
 export const COMMAND_NAME = "_execute_action";
@@ -27,6 +32,7 @@ export const DEFAULT_SETTINGS: TabSearchSettings = {
     listOnOpen: true,
     groupHistory: true,
     keepOpenOnOpen: false,
+    searchEngine: DEFAULT_ENGINE_ID,
 };
 
 const STORAGE_KEY = "local:tabSearchSettings";

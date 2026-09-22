@@ -5,7 +5,7 @@ export default defineConfig({
     manifest: {
         name: "Tabdrift",
         description: "A fast tab switcher. Default: Alt+Shift+K.",
-        version: "1.1.1",
+        version: "1.2.0",
         permissions: ["tabs", "activeTab", "storage", "scripting", "history", "clipboardWrite", "contextMenus"],
         commands: {
             _execute_action: {

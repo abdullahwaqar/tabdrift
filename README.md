@@ -53,6 +53,42 @@ closes.
 Default shortcut: `Alt+Shift+K`. Shortcut, overlay position, and accent
 color are all configurable from the settings page.
 
+## Search the web and open addresses
+
+Tabdrift can stand in for the address bar. Open the overlay, type or paste,
+press Enter. No Ctrl+T, Ctrl+L first.
+
+- **Pick an engine with one letter**, before or after the search:
+  `g` Google, `b` Bing, `d` DuckDuckGo. `g esp32 pinout` and
+  `esp32 pinout g` both search Google. The row goes to the top and is
+  highlighted, so Enter runs it. The full text searched with your default
+  engine sits right below it, for when the letter is part of the search
+  (`vitamin d`).
+- **Plain searches** use the default engine, set in settings (Google out of
+  the box). When nothing in your tabs matches, the search row is on top and
+  Enter runs it. When tabs do match, tabs stay first and the search row sits
+  under them, so the tab switcher works as before.
+- **Addresses**: a full link (`https://...`, `www....`) gets an "open" row
+  on top. Bare addresses like `github.com/user/repo`, `docs.rs`,
+  `localhost:5173` or `192.168.1.1` work too. File names like `README.md`
+  are left alone.
+- **Enter** opens in a new tab, **Shift+Enter** loads it in the tab you're
+  on, and **Ctrl+Enter** (Cmd+Enter on a Mac) opens it in the background
+  and keeps the overlay open.
+
+### New tab and other locked pages
+
+Firefox doesn't let extensions draw on `about:` pages (including the new
+tab page), addons.mozilla.org and a few other Mozilla sites. On those pages
+the same shortcut or toolbar button opens Tabdrift as a toolbar popup
+instead, with the same search, keys and settings.
+
+On an empty tab (new tab, home, `about:blank`), Enter loads the result in
+that tab, so Ctrl+T, shortcut, type, Enter works like the address bar.
+Shift+Enter opens a new tab instead. If Firefox blocks a page Tabdrift
+didn't expect (the PDF viewer, for example), the button flashes "!" and
+the next press opens the popup.
+
 ## Clean up tabs
 
 Open the overlay and your tabs are listed, most recent first, before you

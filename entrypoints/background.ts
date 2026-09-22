@@ -10,9 +10,27 @@ const MAX_HISTORY_RESULTS = 300;
 
 export default defineBackground(() => {
     applyStoredShortcut();
+    syncAllPopups();
 
-    browser.action.onClicked.addListener(async () => {
-        await toggleOverlayOnActiveTab();
+    // Only fires on tabs without the popup set, i.e. normal pages.
+    browser.action.onClicked.addListener((tab) => {
+        if (tab.id !== undefined && isRestrictedUrl(tab.url)) {
+            // A page we missed. No awaits before openPopup, or Firefox no longer sees the click.
+            usePopupFallback(tab.id);
+            return;
+        }
+        void toggleOverlay(tab);
+    });
+
+    browser.tabs.onUpdated.addListener((tabId, changeInfo) => {
+        if (changeInfo.url !== undefined) {
+            syncPopup(tabId, changeInfo.url);
+        }
+    });
+    browser.tabs.onCreated.addListener((tab) => {
+        if (tab.id !== undefined) {
+            syncPopup(tab.id, tab.url);
+        }
     });
 
     browser.runtime.onInstalled.addListener(() => {
@@ -38,6 +56,9 @@ export default defineBackground(() => {
     });
 
     browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        // The page the overlay is on, or for the popup, the tab it was opened over.
+        const originTabId: number | undefined = sender.tab?.id ?? (Number.isInteger(message?.fromTabId) ? message.fromTabId : undefined);
+
         if (message?.action === "getTabs") {
             browser.tabs
                 .query({})
@@ -52,7 +73,7 @@ export default defineBackground(() => {
                             active: tab.active,
                             lastAccessed: tab.lastAccessed,
                             // The tab the overlay is open in. It can't be closed from its own overlay.
-                            current: tab.id === sender.tab?.id,
+                            current: tab.id === originTabId,
                         })),
                     ),
                 )
@@ -65,7 +86,7 @@ export default defineBackground(() => {
 
         if (message?.action === "closeTabs") {
             const ids: number[] = Array.isArray(message.tabIds)
-                ? message.tabIds.filter((id: unknown): id is number => Number.isInteger(id) && id !== sender.tab?.id)
+                ? message.tabIds.filter((id: unknown): id is number => Number.isInteger(id) && id !== originTabId)
                 : [];
             if (ids.length === 0) {
                 sendResponse({ success: false });
@@ -123,6 +144,17 @@ export default defineBackground(() => {
         }
 
         if (message?.action === "openHistoryUrl") {
+            // Load it in the tab the overlay is open in, like typing in the address bar.
+            if (message.inCurrentTab === true && originTabId !== undefined) {
+                browser.tabs
+                    .update(originTabId, { url: message.url })
+                    .then(() => sendResponse({ success: true }))
+                    .catch((err) => {
+                        console.error("[tabdrift] openHistoryUrl in current tab failed:", err);
+                        sendResponse({ success: false });
+                    });
+                return true;
+            }
             // A background open leaves the current tab and window alone, so the overlay stays where it is.
             const background = message.background === true;
             browser.tabs
@@ -167,28 +199,74 @@ async function applyStoredShortcut() {
 
 const RESTRICTED_URL_PREFIXES = ["about:", "moz-extension:", "resource:", "chrome:", "view-source:"];
 
+// Firefox's default extensions.webextensions.restrictedDomains: no content scripts allowed.
+const RESTRICTED_HOSTS = new Set([
+    "accounts-static.cdn.mozilla.net",
+    "accounts.firefox.com",
+    "addons.cdn.mozilla.net",
+    "addons.mozilla.org",
+    "api.accounts.firefox.com",
+    "content.cdn.mozilla.net",
+    "discovery.addons.mozilla.org",
+    "install.mozilla.org",
+    "oauth.accounts.firefox.com",
+    "profile.accounts.firefox.com",
+    "support.mozilla.org",
+    "sync.services.mozilla.com",
+]);
+
+const POPUP_PAGE = "/palette.html";
+
 function isRestrictedUrl(url: string | undefined): boolean {
     if (!url) {
         return true;
     }
-    return RESTRICTED_URL_PREFIXES.some((prefix) => url.startsWith(prefix));
+    if (RESTRICTED_URL_PREFIXES.some((prefix) => url.startsWith(prefix))) {
+        return true;
+    }
+    try {
+        return RESTRICTED_HOSTS.has(new URL(url).hostname);
+    } catch {
+        return false;
+    }
 }
 
-async function toggleOverlayOnActiveTab() {
-    const [tab] = await browser.tabs.query({
-        active: true,
-        currentWindow: true,
-    });
-    if (!tab?.id) {
+/**
+ * Locked pages get the palette as a toolbar popup, so the button and the
+ * shortcut open it there directly. Every other page keeps the overlay.
+ */
+function syncPopup(tabId: number, url: string | undefined) {
+    browser.action.setPopup({ tabId, popup: isRestrictedUrl(url) ? POPUP_PAGE : "" }).catch(() => {});
+}
+
+async function syncAllPopups() {
+    try {
+        for (const tab of await browser.tabs.query({})) {
+            if (tab.id !== undefined) {
+                syncPopup(tab.id, tab.url);
+            }
+        }
+    } catch (err) {
+        console.error("[tabdrift] popup sync failed:", err);
+    }
+}
+
+/** Sets the popup for this tab and tries to open it now. If Firefox refuses, the next press opens it. */
+function usePopupFallback(tabId: number) {
+    browser.action.setPopup({ tabId, popup: POPUP_PAGE }).catch(() => {});
+    const action = browser.action as unknown as { openPopup?: () => Promise<void> };
+    action.openPopup?.().catch(() => flashBadge(tabId, false));
+}
+
+async function toggleOverlay(tab: { id?: number; url?: string }) {
+    if (tab.id === undefined) {
         return;
     }
-
-    if (isRestrictedUrl(tab.url)) {
-        console.warn("[tabdrift] can't run on this page (a restricted internal page):", tab.url);
-        return;
+    const ok = await sendToTab(tab.id, { action: "showTabSearch" });
+    if (!ok) {
+        // Some pages refuse scripts without matching our list (the PDF viewer, for one).
+        usePopupFallback(tab.id);
     }
-
-    await sendToTab(tab.id, { action: "showTabSearch" });
 }
 
 /**

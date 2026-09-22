@@ -3,42 +3,55 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Tabdrift, a fast keyboard-first tab switcher for Firefox</title>
+        <title>Tabdrift: Firefox tab switcher, history and web search</title>
         <meta
             name="description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search Google, Bing or DuckDuckGo."
         />
+        <meta name="robots" content="index, follow, max-image-preview:large" />
+        <meta name="author" content="Abdullah Waqar" />
+        <meta name="theme-color" content="#0f1013" />
         <link rel="canonical" href="https://abdullahwaqar.com/tabdrift" />
 
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Tabdrift" />
+        <meta property="og:locale" content="en_US" />
         <meta
             property="og:title"
-            content="Tabdrift, a fast keyboard-first tab switcher for Firefox"
+            content="Tabdrift: Firefox tab switcher, history and web search"
         />
         <meta
             property="og:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search Google, Bing or DuckDuckGo."
         />
         <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
         <meta
             property="og:image"
             content="https://abdullahwaqar.com/tabdrift/showcase01.png"
         />
+        <meta
+            property="og:image:alt"
+            content="Tabdrift's search box open over a web page in Firefox"
+        />
 
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:site" content="@abdullah_wc" />
+        <meta name="twitter:creator" content="@abdullah_wc" />
         <meta
             name="twitter:title"
-            content="Tabdrift, a fast keyboard-first tab switcher for Firefox"
+            content="Tabdrift: Firefox tab switcher, history and web search"
         />
         <meta
             name="twitter:description"
-            content="Tabdrift adds a floating tab search to Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search Google, Bing or DuckDuckGo."
         />
         <meta
             name="twitter:image"
             content="https://abdullahwaqar.com/tabdrift/showcase01.png"
+        />
+        <meta
+            name="twitter:image:alt"
+            content="Tabdrift's search box open over a web page in Firefox"
         />
 
         <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png" />
@@ -47,22 +60,115 @@
         <script type="application/ld+json">
             {
                 "@context": "https://schema.org",
-                "@type": "SoftwareApplication",
-                "name": "Tabdrift",
-                "applicationCategory": "BrowserExtension",
-                "operatingSystem": "Firefox",
-                "description": "A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a few letters, jump to the tab you meant, or reopen it from history if it isn't open. Paste an email or link to copy its domain or a tracker-free URL. Close tabs from the same box, one key each.",
-                "url": "https://abdullahwaqar.com/tabdrift",
-                "author": {
-                    "@type": "Person",
-                    "name": "Abdullah Waqar",
-                    "url": "https://www.abdullahwaqar.com/"
-                },
-                "offers": {
-                    "@type": "Offer",
-                    "price": "0",
-                    "priceCurrency": "USD"
-                }
+                "@graph": [
+                    {
+                        "@type": "SoftwareApplication",
+                        "@id": "https://abdullahwaqar.com/tabdrift#app",
+                        "name": "Tabdrift",
+                        "applicationCategory": "BrowserApplication",
+                        "applicationSubCategory": "Browser extension",
+                        "operatingSystem": "Windows, macOS, Linux (Firefox)",
+                        "browserRequirements": "Requires Firefox 109 or later",
+                        "description": "A free, open source, keyboard-first tab switcher for Firefox. Press a shortcut to jump to an open tab, reopen a page from history, search Google, Bing or DuckDuckGo, or open an address. Works on the new tab page too. Paste an email or link to copy its domain or a tracker-free URL, and close tabs from the same box.",
+                        "url": "https://abdullahwaqar.com/tabdrift",
+                        "downloadUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
+                        "installUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
+                        "screenshot": "https://abdullahwaqar.com/tabdrift/showcase01.png",
+                        "license": "https://github.com/abdullahwaqar/tabdrift/blob/main/LICENSE",
+                        "isAccessibleForFree": true,
+                        "codeRepository": "https://github.com/abdullahwaqar/tabdrift",
+                        "featureList": [
+                            "Fuzzy search across open tabs in every window",
+                            "History search grouped by site",
+                            "Web search with Google, Bing or DuckDuckGo using a one-letter key",
+                            "Open typed addresses like github.com or localhost:5173",
+                            "Works on the new tab page and other locked Firefox pages",
+                            "Copy a link without tracking parameters",
+                            "Get the domain from an email address",
+                            "Close tabs and duplicate tabs from the keyboard"
+                        ],
+                        "author": {
+                            "@type": "Person",
+                            "name": "Abdullah Waqar",
+                            "url": "https://www.abdullahwaqar.com/"
+                        },
+                        "offers": {
+                            "@type": "Offer",
+                            "price": "0",
+                            "priceCurrency": "USD"
+                        }
+                    },
+                    {
+                        "@type": "FAQPage",
+                        "@id": "https://abdullahwaqar.com/tabdrift#faq",
+                        "mainEntity": [
+                            {
+                                "@type": "Question",
+                                "name": "Is Tabdrift free?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Yes. Tabdrift is free and open source under the MIT license. There are no accounts, no ads and no paid tier. The source is on GitHub."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Can Tabdrift replace the Firefox address bar?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "For most things, yes. Type a search and press Enter to search Google, Bing or DuckDuckGo, or type an address like github.com to open it. Put g, b or d before or after a search to pick the engine. Your open tabs and history show up in the same list, so one box covers switching, reopening and searching."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Does it work on the new tab page?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Yes. Firefox doesn't let extensions draw on the new tab page or other about: pages, so there the same shortcut opens Tabdrift from the toolbar instead. On an empty tab, Enter loads the result in that tab, so it behaves like the address bar."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Which search engines does it support?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Google, Bing and DuckDuckGo. Pick your default in settings. The keys g, b and d choose one for a single search, typed either before or after the search, like \"g esp32 pinout\" or \"esp32 pinout d\"."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Does Tabdrift send my tabs, history or searches anywhere?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "No. Tab and history matching happens inside your browser and nothing is sent to a server. Web searches go straight from Firefox to the engine you picked, the same as searching from the address bar. Tabdrift doesn't log them."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "What's the keyboard shortcut?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Alt+Shift+K by default. You can change it in Tabdrift's settings. Alt+Shift+C copies the current page's link without tracking parameters."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Does Tabdrift work in Chrome, Edge or Safari?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "No. Tabdrift is built for Firefox 109 and later, on Windows, macOS and Linux."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "How do I close lots of tabs quickly?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Open Tabdrift and press Ctrl+D on a highlighted tab to close it. The highlight moves to the next one. A Clean up row closes duplicate tabs in one go, and typing a site name offers to close every matching tab. Closed tabs come back with Ctrl+Shift+T."
+                                }
+                            }
+                        ]
+                    }
+                ]
             }
         </script>
         <style>
@@ -604,7 +710,8 @@
             }
             @media (min-width: 760px) {
                 .customize-grid {
-                    grid-template-columns: 1fr 1fr;
+                    grid-template-columns: repeat(3, auto);
+                    justify-content: space-between;
                 }
             }
             .customize-card h3 {
@@ -732,6 +839,112 @@
                 padding-bottom: 56px;
             }
 
+            /* search engine picker (customize) */
+            .segmented {
+                display: inline-flex;
+                padding: 3px;
+                gap: 2px;
+                border-radius: 9px;
+                background: var(--bg-raised-2);
+                border: 1px solid var(--border-strong);
+            }
+            .segmented button {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 11px;
+                border: none;
+                border-radius: 6px;
+                background: none;
+                font: inherit;
+                font-size: 12.5px;
+                color: var(--text-dim);
+                cursor: pointer;
+            }
+            .segmented button:hover {
+                color: var(--text);
+            }
+            .segmented button[aria-checked="true"] {
+                background: var(--accent);
+                color: #fff;
+            }
+            .segmented button:focus-visible,
+            .demo-chip:focus-visible,
+            .swatch:focus-visible,
+            .mini-zone:focus-visible,
+            summary:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+            .segmented kbd {
+                font-family: var(--mono);
+                font-size: 11px;
+                opacity: 0.7;
+            }
+            .customize-note {
+                margin: 10px 0 0;
+                font-size: 12.5px;
+                line-height: 1.55;
+                color: var(--text-faint);
+                max-width: 36ch;
+            }
+
+            /* key sequence (new tab) */
+            .sequence {
+                display: flex;
+                flex-wrap: wrap;
+                align-items: center;
+                gap: 6px 8px;
+                font-size: 12.5px;
+                color: var(--text-dim);
+            }
+            .sequence .then {
+                color: var(--text-faint);
+            }
+
+            /* faq */
+            .faq {
+                border-top: 1px solid var(--border);
+            }
+            .faq details {
+                border-bottom: 1px solid var(--border);
+            }
+            .faq summary {
+                list-style: none;
+                cursor: pointer;
+                padding: 18px 28px 18px 0;
+                position: relative;
+                font-size: 14.5px;
+                font-weight: 600;
+            }
+            .faq summary::-webkit-details-marker {
+                display: none;
+            }
+            .faq summary::after {
+                content: "+";
+                position: absolute;
+                right: 4px;
+                top: 16px;
+                font-family: var(--mono);
+                font-size: 16px;
+                color: var(--text-faint);
+            }
+            .faq details[open] summary::after {
+                content: "\2212";
+            }
+            .faq details p {
+                margin: 0 0 18px;
+                max-width: 68ch;
+                font-size: 13.5px;
+                line-height: 1.65;
+                color: var(--text-dim);
+            }
+            .faq code {
+                font-family: var(--mono);
+                font-size: 12px;
+                color: var(--text);
+            }
+
             /* footer */
             footer {
                 border-top: 1px solid var(--border);
@@ -760,9 +973,13 @@
         </style>
     </head>
     <body>
-        <div class="nav">
-            <div class="wrap">
-                <a class="brand" href="#">
+        <header class="nav">
+            <nav class="wrap" aria-label="Main">
+                <a
+                    class="brand"
+                    href="https://abdullahwaqar.com/tabdrift"
+                    aria-label="Tabdrift home"
+                >
                     <svg
                         viewBox="0 0 24 24"
                         width="18"
@@ -781,11 +998,11 @@
                 </a>
                 <div class="nav-links">
                     <a href="#how">How it works</a>
+                    <a href="#search">Web search</a>
                     <a href="#history">History</a>
-                    <a href="#open-many">Open several</a>
                     <a href="#utilities">Utilities</a>
                     <a href="#cleanup">Clean up</a>
-                    <a href="#customize">Customize</a>
+                    <a href="#faq">FAQ</a>
                     <a
                         href="https://github.com/abdullahwaqar/tabdrift"
                         target="_blank"
@@ -800,21 +1017,23 @@
                         >Add to Firefox</a
                     >
                 </div>
-            </div>
-        </div>
+            </nav>
+        </header>
 
-        <div class="wrap">
+        <main class="wrap">
             <section class="hero">
                 <div>
-                    <h1>Search your open tabs without touching the mouse.</h1>
+                    <h1>
+                        Switch tabs, search history and the web from one box.
+                    </h1>
                     <p class="lede">
-                        Tabdrift is a small Firefox extension that opens a
+                        Tabdrift is a free Firefox extension that opens a
                         floating search over whatever page you're on. Press the
                         shortcut, type a few letters, hit enter, you're on the
-                        right tab. Nothing open matches? It searches your
-                        history and reopens the page in a new tab instead. Paste
-                        an email or a link and it hands you the domain or a
-                        tracker-free URL.
+                        right tab. Not open? It finds the page in your history.
+                        Not in history either? Enter searches Google, Bing or
+                        DuckDuckGo. Paste an email or a link and it hands you
+                        the domain or a tracker-free URL.
                     </p>
                     <div class="cta-row">
                         <a
@@ -826,6 +1045,7 @@
                                 src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg"
                                 alt="Get the Add-on for Firefox"
                                 width="172"
+                                height="60"
                             />
                         </a>
                         <div class="shortcut-hint">
@@ -866,7 +1086,8 @@
                                     <input
                                         id="demo-input"
                                         type="text"
-                                        placeholder="Search tabs, or paste an email or link..."
+                                        placeholder="Search tabs or the web, or paste a link..."
+                                        aria-label="Try the Tabdrift search box"
                                         autocomplete="off"
                                         spellcheck="false"
                                     />
@@ -907,6 +1128,20 @@
                         <button
                             class="demo-chip"
                             type="button"
+                            data-value="esp32 pinout g"
+                        >
+                            a web search
+                        </button>
+                        <button
+                            class="demo-chip"
+                            type="button"
+                            data-value="github.com/abdullahwaqar/tabdrift"
+                        >
+                            an address
+                        </button>
+                        <button
+                            class="demo-chip"
+                            type="button"
                             data-value="acme"
                         >
                             history by site
@@ -919,7 +1154,10 @@
                 <div class="shot-frame">
                     <img
                         src="https://abdullahwaqar.com/tabdrift/showcase01.png"
-                        alt="Tabdrift's search overlay open over a webpage"
+                        alt="Tabdrift's search box open over a web page in Firefox, listing matching tabs"
+                        width="668"
+                        height="231"
+                        decoding="async"
                     />
                 </div>
                 <div class="shot-caption">
@@ -931,9 +1169,9 @@
                 <div class="block-head">
                     <h2>How it works</h2>
                     <p>
-                        No background tab-scanning. History is only searched
-                        once you've typed something that doesn't match an open
-                        tab.
+                        Nothing runs in the background. Tabdrift reads your tabs
+                        and history only while the box is open, and everything
+                        stays in your browser.
                     </p>
                 </div>
                 <div class="steps">
@@ -963,12 +1201,12 @@
                     <div class="step">
                         <span class="step-index">03</span>
                         <div>
-                            <h3>No match? Check history</h3>
+                            <h3>Not open? Check history, then the web</h3>
                             <p>
-                                If nothing open fits, Tabdrift searches your
-                                history and lists close matches underneath, one
-                                row per site and marked "history". Pick one and
-                                it opens in a new tab.
+                                Close matches from your history show up under
+                                your tabs, one row per site. If nothing fits at
+                                all, the top row is a web search, so Enter takes
+                                you to the results.
                             </p>
                         </div>
                     </div>
@@ -981,6 +1219,159 @@
                                 it and focuses that window. Esc closes without
                                 doing anything.
                             </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="block" id="search">
+                <div class="block-head">
+                    <h2>Search the web from the same box</h2>
+                    <p>
+                        Tabdrift stands in for the address bar. Open it, type or
+                        paste, press Enter. No Ctrl+T and Ctrl+L first, and no
+                        typing @google to change engines.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>One letter picks the engine</h3>
+                        <p>
+                            Put <code>g</code>, <code>b</code> or
+                            <code>d</code> before or after a search for Google,
+                            Bing or DuckDuckGo. That row jumps to the top, so
+                            Enter runs it. Plain searches use your default.
+                        </p>
+                        <div class="code-block">
+                            <span class="hl">g</span>
+                            <span class="keep">esp32 pinout</span>
+                            <span class="dim">Google</span><br />
+                            <span class="keep">esp32 pinout</span>
+                            <span class="hl">d</span>
+                            <span class="dim">DuckDuckGo</span><br />
+                            <span class="keep">rust iced tutorial</span>
+                            <span class="dim">your default</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Type an address, go</h3>
+                        <p>
+                            Full links, bare domains, local dev servers and IP
+                            addresses all get an open row. File names like
+                            <code>README.md</code> are left alone, so tab search
+                            still finds them.
+                        </p>
+                        <div class="code-block">
+                            <span class="keep">github.com/you/repo</span><br />
+                            <span class="keep">localhost:5173</span><br />
+                            <span class="keep">192.168.1.1</span><br />
+                            <span class="strike">README.md</span>
+                            <span class="dim">searched, not opened</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Open it where you want</h3>
+                        <p>
+                            A new tab by default, the tab you're on with Shift,
+                            or a background tab with Ctrl so you can queue up a
+                            few searches.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Enter</span>
+                                <span>new tab</span>
+                            </div>
+                            <div>
+                                <span class="keycap">Shift</span>+<span
+                                    class="keycap"
+                                    >Enter</span
+                                >
+                                <span>this tab</span>
+                            </div>
+                            <div>
+                                <span class="keycap">Ctrl</span>+<span
+                                    class="keycap"
+                                    >Enter</span
+                                >
+                                <span>background, stay open</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    Your tabs still come first. When something you typed matches
+                    an open tab, the tab stays on top and the search sits under
+                    it, so switching works the way it always has. Searching for
+                    something like "vitamin d"? The key row goes first, and the
+                    full text with your default engine is one arrow press below.
+                    Searches go straight to the engine you picked. Tabdrift
+                    doesn't see, log or store them, and it needs no extra
+                    permissions for this.
+                </p>
+            </section>
+
+            <section class="block" id="new-tab">
+                <div class="block-head">
+                    <h2>Works on the new tab page too</h2>
+                    <p>
+                        Firefox doesn't let extensions draw on its own pages:
+                        the new tab page, other about: pages and
+                        addons.mozilla.org. There, the same shortcut opens
+                        Tabdrift from the toolbar instead, with the same search,
+                        keys and settings.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>Replaces the empty tab</h3>
+                        <p>
+                            On a new tab, Enter loads the result right there
+                            instead of opening yet another tab. Shift+Enter
+                            opens a new one if you want it.
+                        </p>
+                        <div class="sequence">
+                            <span class="keycap">Ctrl</span>+<span
+                                class="keycap"
+                                >T</span
+                            >
+                            <span class="then">then</span>
+                            <span class="keycap">Alt</span>+<span class="keycap"
+                                >Shift</span
+                            >+<span class="keycap">K</span>
+                            <span class="then">then type, Enter</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Same box, same keys</h3>
+                        <p>
+                            Switch tabs, close them with Ctrl+D, open history,
+                            copy clean links. Everything the overlay does works
+                            in the toolbar version.
+                        </p>
+                        <div class="code-block">
+                            <span class="keep">about:newtab</span>
+                            <span class="dim">toolbar</span><br />
+                            <span class="keep">about:addons</span>
+                            <span class="dim">toolbar</span><br />
+                            <span class="keep">any other page</span>
+                            <span class="dim">overlay</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Pages it didn't expect</h3>
+                        <p>
+                            A few pages block extensions without saying so, like
+                            the built-in PDF viewer. The button flashes "!" the
+                            first time, and the next press opens Tabdrift from
+                            the toolbar.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span
+                                    >Tip: pin Tabdrift to the toolbar so it
+                                    opens right under its button.</span
+                                >
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1150,9 +1541,10 @@
                 <div class="block-head">
                     <h2>Emails and links</h2>
                     <p>
-                        Paste an email or a link into the overlay and a
-                        Utilities section shows up above your tabs. The top row
-                        is already selected, so enter copies it.
+                        Paste an email and a Utilities section shows up with the
+                        domain already selected, so Enter copies it. Paste a
+                        link and the top row opens it, with the clean link and
+                        the other copy options right under it.
                     </p>
                 </div>
                 <div class="util-grid">
@@ -1293,10 +1685,12 @@
                 <div class="block-head">
                     <h2>Make it yours</h2>
                     <p>
-                        Pick an accent color and where the overlay sits on
-                        screen, and switch Quick copy, the tab list, history
-                        grouping and keeping the overlay open after opening a
-                        link on or off, right from the same settings panel.
+                        Pick an accent color, where the overlay sits on screen
+                        and your default search engine, and switch Quick copy,
+                        the tab list, history grouping and keeping the overlay
+                        open after opening a link on or off. It's all in one
+                        settings page. Try them here, the demo above follows
+                        along.
                     </p>
                 </div>
                 <div class="customize-grid">
@@ -1339,9 +1733,111 @@
                             </div>
                         </div>
                     </div>
+                    <div class="customize-card">
+                        <h3 id="engine-label">Default search engine</h3>
+                        <div
+                            id="engine-picker"
+                            class="segmented"
+                            role="radiogroup"
+                            aria-labelledby="engine-label"
+                        ></div>
+                        <p class="customize-note">
+                            The one-letter keys still work whichever you pick.
+                        </p>
+                    </div>
                 </div>
             </section>
-        </div>
+
+            <section class="block" id="faq">
+                <div class="block-head">
+                    <h2>Common questions about Tabdrift</h2>
+                </div>
+                <div class="faq">
+                    <details>
+                        <summary>Is Tabdrift free?</summary>
+                        <p>
+                            Yes. Tabdrift is free and open source under the MIT
+                            license. There are no accounts, no ads and no paid
+                            tier. The source is on GitHub.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>
+                            Can Tabdrift replace the Firefox address bar?
+                        </summary>
+                        <p>
+                            For most things, yes. Type a search and press Enter
+                            to search Google, Bing or DuckDuckGo, or type an
+                            address like github.com to open it. Put g, b or d
+                            before or after a search to pick the engine. Your
+                            open tabs and history show up in the same list, so
+                            one box covers switching, reopening and searching.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>Does it work on the new tab page?</summary>
+                        <p>
+                            Yes. Firefox doesn&#x27;t let extensions draw on the
+                            new tab page or other about: pages, so there the
+                            same shortcut opens Tabdrift from the toolbar
+                            instead. On an empty tab, Enter loads the result in
+                            that tab, so it behaves like the address bar.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>Which search engines does it support?</summary>
+                        <p>
+                            Google, Bing and DuckDuckGo. Pick your default in
+                            settings. The keys g, b and d choose one for a
+                            single search, typed either before or after the
+                            search, like &quot;g esp32 pinout&quot; or
+                            &quot;esp32 pinout d&quot;.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>
+                            Does Tabdrift send my tabs, history or searches
+                            anywhere?
+                        </summary>
+                        <p>
+                            No. Tab and history matching happens inside your
+                            browser and nothing is sent to a server. Web
+                            searches go straight from Firefox to the engine you
+                            picked, the same as searching from the address bar.
+                            Tabdrift doesn&#x27;t log them.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>What&#x27;s the keyboard shortcut?</summary>
+                        <p>
+                            Alt+Shift+K by default. You can change it in
+                            Tabdrift&#x27;s settings. Alt+Shift+C copies the
+                            current page&#x27;s link without tracking
+                            parameters.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>
+                            Does Tabdrift work in Chrome, Edge or Safari?
+                        </summary>
+                        <p>
+                            No. Tabdrift is built for Firefox 109 and later, on
+                            Windows, macOS and Linux.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>How do I close lots of tabs quickly?</summary>
+                        <p>
+                            Open Tabdrift and press Ctrl+D on a highlighted tab
+                            to close it. The highlight moves to the next one. A
+                            Clean up row closes duplicate tabs in one go, and
+                            typing a site name offers to close every matching
+                            tab. Closed tabs come back with Ctrl+Shift+T.
+                        </p>
+                    </details>
+                </div>
+            </section>
+        </main>
 
         <footer>
             <div class="wrap">
@@ -1381,21 +1877,21 @@
             (() => {
                 var TABS = [
                     {
-                        title: "Design tokens — Figma file",
+                        title: "Design tokens - Figma file",
                         url: "figma.com/file/design-tokens",
                     },
                     {
-                        title: "Q3 roadmap — Notion",
+                        title: "Q3 roadmap - Notion",
                         url: "notion.so/q3-roadmap",
                     },
                     {
-                        title: "flexbox centering — Stack Overflow",
+                        title: "flexbox centering - Stack Overflow",
                         url: "stackoverflow.com/questions/flexbox",
                     },
                     { title: "Weather in Lahore", url: "weather.com/lahore" },
                     { title: "localhost:3000", url: "localhost:3000" },
                     {
-                        title: "API reference — Docs",
+                        title: "API reference - Docs",
                         url: "docs.example.com/api",
                     },
                     {
@@ -1411,11 +1907,11 @@
                         url: "cooking.example.com/lentil-soup",
                     },
                     {
-                        title: "Inbox (14) — Mail",
+                        title: "Inbox (14) - Mail",
                         url: "mail.example.com/inbox",
                     },
                     {
-                        title: "Deploy logs — Netlify",
+                        title: "Deploy logs - Netlify",
                         url: "app.netlify.com/deploys",
                     },
                     { title: "npm install wxt", url: "npmjs.com/package/wxt" },
@@ -1452,11 +1948,11 @@
                         url: "app.acmecrm.com/login?session=3fa9c1",
                     },
                     {
-                        title: "abdullahwaqar/tabdrift — GitHub",
+                        title: "abdullahwaqar/tabdrift - GitHub",
                         url: "github.com/abdullahwaqar/tabdrift",
                     },
                     {
-                        title: "History API — MDN",
+                        title: "History API - MDN",
                         url: "developer.mozilla.org/history-api",
                     },
                     {
@@ -1477,6 +1973,8 @@
                 let expandedHost = null;
                 let detail = null;
                 let utils = [];
+                let web = [];
+                let webFirst = false;
                 let rowEls = [];
                 let selectedIndex = 0;
                 let hintTimer = null;
@@ -1672,6 +2170,147 @@
                     return [];
                 };
 
+                // Web search and addresses, as in the extension.
+                const ENGINES = [
+                    {
+                        id: "google",
+                        name: "Google",
+                        key: "g",
+                        url: "https://www.google.com/search?q=",
+                    },
+                    {
+                        id: "bing",
+                        name: "Bing",
+                        key: "b",
+                        url: "https://www.bing.com/search?q=",
+                    },
+                    {
+                        id: "duckduckgo",
+                        name: "DuckDuckGo",
+                        key: "d",
+                        url: "https://duckduckgo.com/?q=",
+                    },
+                ];
+                let defaultEngine = ENGINES[0];
+
+                const engineByKey = (key) =>
+                    ENGINES.find((e) => e.key === key.toLowerCase());
+
+                const parseEngineKey = (text) => {
+                    const t = text.trim();
+                    const pre = t.match(/^(\S+)\s+([\s\S]+)$/);
+                    if (pre && engineByKey(pre[1])) {
+                        return {
+                            engine: engineByKey(pre[1]),
+                            query: pre[2].trim(),
+                        };
+                    }
+                    const post = t.match(/^([\s\S]+?)\s+(\S+)$/);
+                    if (post && engineByKey(post[2])) {
+                        return {
+                            engine: engineByKey(post[2]),
+                            query: post[1].trim(),
+                        };
+                    }
+                    return null;
+                };
+
+                const FILE_ENDINGS = [
+                    "md",
+                    "ts",
+                    "js",
+                    "json",
+                    "html",
+                    "txt",
+                    "pdf",
+                    "png",
+                    "jpg",
+                    "py",
+                    "css",
+                    "yml",
+                    "yaml",
+                    "toml",
+                    "lock",
+                    "zip",
+                ];
+
+                const parseAddress = (text) => {
+                    const t = text.trim();
+                    if (!t || /\s|@/.test(t)) {
+                        return null;
+                    }
+                    if (/^(https?:\/\/|www\.)/i.test(t)) {
+                        return {
+                            url: /^www\./i.test(t) ? `https://${t}` : t,
+                            explicit: true,
+                        };
+                    }
+                    if (
+                        /^(localhost|\d{1,3}(\.\d{1,3}){3})(:\d+)?([/?#]\S*)?$/i.test(
+                            t,
+                        )
+                    ) {
+                        return { url: `http://${t}`, explicit: false };
+                    }
+                    const m = t.match(
+                        /^((?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+([a-z]{2,24}))(:\d+)?([/?#]\S*)?$/i,
+                    );
+                    if (
+                        !m ||
+                        (FILE_ENDINGS.indexOf(m[2].toLowerCase()) !== -1 &&
+                            t.length === m[1].length)
+                    ) {
+                        return null;
+                    }
+                    return { url: `https://${t}`, explicit: false };
+                };
+
+                const searchRow = (engine, query) => ({
+                    type: "search",
+                    title: query,
+                    sub: `Search with ${engine.name}`,
+                    badge: engine.key,
+                    engine: engine,
+                    url: engine.url + encodeURIComponent(query),
+                });
+
+                const planWeb = (query) => {
+                    const q = query.trim();
+                    if (!q) {
+                        return { rows: [], first: false };
+                    }
+                    const plain = searchRow(defaultEngine, q);
+                    const keyed = parseEngineKey(q);
+                    if (keyed) {
+                        return {
+                            rows: [searchRow(keyed.engine, keyed.query), plain],
+                            first: true,
+                        };
+                    }
+                    const address = parseAddress(q);
+                    const nothingElse =
+                        filtered.length === 0 && utils.length === 0;
+                    if (address) {
+                        const go = {
+                            type: "go",
+                            title: address.url,
+                            sub: "Open in a new tab",
+                            badge: "go",
+                            url: address.url,
+                        };
+                        return {
+                            rows: address.explicit ? [go] : [go, plain],
+                            first: address.explicit || nothingElse,
+                        };
+                    }
+                    return { rows: [plain], first: nothingElse };
+                };
+
+                const SEARCH_ICON =
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm10 17-5.6-5.6"/></svg>';
+                const GLOBE_ICON =
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>';
+
                 const COPY_ICON =
                     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
 
@@ -1696,14 +2335,21 @@
                             data: data,
                         }));
                     }
-                    const rows = utils
-                        .map((data) => ({ kind: "util", data: data }))
+                    const webRows = web.map((data) => ({
+                        kind: "web",
+                        data: data,
+                    }));
+                    const rows = (webFirst ? webRows : [])
+                        .concat(
+                            utils.map((data) => ({ kind: "util", data: data })),
+                        )
                         .concat(
                             filtered.map((data) => ({
                                 kind: "tab",
                                 data: data,
                             })),
-                        );
+                        )
+                        .concat(webFirst ? [] : webRows);
                     filteredHistory.forEach((group) => {
                         rows.push({ kind: "site", data: group });
                         if (group.host === expandedHost) {
@@ -1724,7 +2370,16 @@
                     const row = allRows()[selectedIndex];
                     const dot = " \u00a0\u2022\u00a0 ";
                     let parts = ["\u2191\u2193 navigate", "Enter switch"];
-                    if (row && row.kind === "util") {
+                    if (row && row.kind === "web") {
+                        parts = [
+                            "\u2191\u2193 navigate",
+                            row.data.type === "go"
+                                ? "Enter open"
+                                : "Enter search",
+                            "Shift+Enter this tab",
+                            `${flipLabel}Enter keep open`,
+                        ];
+                    } else if (row && row.kind === "util") {
                         parts = detail
                             ? ["Enter copy", "\u2190 back"]
                             : ["\u2191\u2193 navigate", "Enter copy"];
@@ -1804,6 +2459,25 @@
                         copyUtility(row.data);
                         return;
                     }
+                    if (row.kind === "web") {
+                        const what =
+                            row.data.type === "go"
+                                ? shorten(
+                                      row.data.url.replace(/^https?:\/\//, ""),
+                                  )
+                                : `${row.data.engine.name} results for \u201c${shorten(row.data.title)}\u201d`;
+                        if (flip) {
+                            openedCount += 1;
+                            flashHint(
+                                `\u2713 Opened ${what} in the background (${openedCount} so far)`,
+                            );
+                        } else {
+                            flashHint(
+                                `Opens ${what} ${exact ? "in this tab" : "in a new tab"}`,
+                            );
+                        }
+                        return;
+                    }
                     if (flip && (row.kind === "site" || row.kind === "page")) {
                         const title =
                             row.kind === "site"
@@ -1875,7 +2549,7 @@
                         empty.className = "demo-empty";
                         empty.textContent = input.value.trim()
                             ? "No matching tabs or history"
-                            : "Start typing, or paste an email or link";
+                            : "Search tabs or the web. Add g, b or d to pick an engine";
                         results.appendChild(empty);
                         updateHint();
                         return;
@@ -1894,7 +2568,12 @@
                                     : "Utilities";
                             } else if (section === "history") {
                                 heading = "From history";
-                            } else if (utils.length > 0) {
+                            } else if (section === "web") {
+                                heading = "Web";
+                            } else if (
+                                utils.length > 0 ||
+                                (webFirst && web.length > 0)
+                            ) {
                                 heading = "Open tabs";
                             }
                             if (heading) {
@@ -1909,7 +2588,34 @@
                         const el = document.createElement("div");
                         el.className = `demo-row${i === selectedIndex ? " selected" : ""}`;
 
-                        if (row.kind === "util") {
+                        if (row.kind === "web") {
+                            const icon = document.createElement("span");
+                            icon.className = "util-icon";
+                            icon.innerHTML =
+                                row.data.type === "go"
+                                    ? GLOBE_ICON
+                                    : SEARCH_ICON;
+
+                            const text = document.createElement("div");
+                            text.className = "text";
+                            const wTitle = document.createElement("div");
+                            wTitle.className =
+                                row.data.type === "go" ? "title mono" : "title";
+                            wTitle.textContent = row.data.title;
+                            const wSub = document.createElement("div");
+                            wSub.className = "sub";
+                            wSub.textContent = row.data.sub;
+                            text.appendChild(wTitle);
+                            text.appendChild(wSub);
+
+                            const wBadge = document.createElement("span");
+                            wBadge.className = "demo-badge";
+                            wBadge.textContent = row.data.badge;
+
+                            el.appendChild(icon);
+                            el.appendChild(text);
+                            el.appendChild(wBadge);
+                        } else if (row.kind === "util") {
                             const icon = document.createElement("span");
                             icon.className = "util-icon";
                             icon.innerHTML = COPY_ICON;
@@ -2011,6 +2717,9 @@
                           )
                         : [];
                     utils = q ? buildUtilities(query) : [];
+                    const plan = planWeb(query);
+                    web = plan.rows;
+                    webFirst = plan.first;
                     expandedHost = null;
                     detail = null;
                     selectedIndex = 0;
@@ -2120,6 +2829,54 @@
                         ", ",
                     );
                 }
+
+                // default engine: the demo above follows it
+                var enginePicker = document.getElementById("engine-picker");
+                const setEngine = (id) => {
+                    defaultEngine =
+                        ENGINES.find((e) => e.id === id) || ENGINES[0];
+                    enginePicker.querySelectorAll("button").forEach((b) => {
+                        const on = b.dataset.engine === defaultEngine.id;
+                        b.setAttribute("aria-checked", String(on));
+                        b.tabIndex = on ? 0 : -1;
+                    });
+                    filter(input.value);
+                };
+                ENGINES.forEach((engine) => {
+                    var btn = document.createElement("button");
+                    btn.type = "button";
+                    btn.setAttribute("role", "radio");
+                    btn.dataset.engine = engine.id;
+                    btn.append(engine.name);
+                    var key = document.createElement("kbd");
+                    key.textContent = engine.key;
+                    btn.append(key);
+                    btn.addEventListener("click", () => setEngine(engine.id));
+                    enginePicker.appendChild(btn);
+                });
+                enginePicker.addEventListener("keydown", (e) => {
+                    if (
+                        [
+                            "ArrowLeft",
+                            "ArrowRight",
+                            "ArrowUp",
+                            "ArrowDown",
+                        ].indexOf(e.key) === -1
+                    ) {
+                        return;
+                    }
+                    e.preventDefault();
+                    const at = ENGINES.indexOf(defaultEngine);
+                    const step =
+                        e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
+                    const next =
+                        ENGINES[(at + step + ENGINES.length) % ENGINES.length];
+                    setEngine(next.id);
+                    enginePicker
+                        .querySelector(`[data-engine="${next.id}"]`)
+                        .focus();
+                });
+                setEngine("google");
 
                 // position preview
                 var miniBody = document.getElementById("mini-body");
