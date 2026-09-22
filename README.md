@@ -1,6 +1,6 @@
 # Tabdrift
 
-![Tabdrift search overlay](./site/showcase01.png)
+![Tabdrift search overlay](./site/assets/social/tabdrift-social-1200x630.png)
 
 A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a
 few letters, jump straight to the tab you meant.
