@@ -27,11 +27,14 @@
         <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
         <meta
             property="og:image"
-            content="https://abdullahwaqar.com/tabdrift/showcase01.png"
+            content="https://abdullahwaqar.com/tabdrift/assets/social/tabdrift-social-1200x630.png"
         />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:type" content="image/png" />
         <meta
             property="og:image:alt"
-            content="Tabdrift's search box open over a web page in Firefox"
+            content="Tabdrift: switch tabs, search history and the web from one box in Firefox"
         />
 
         <meta name="twitter:card" content="summary_large_image" />
@@ -47,11 +50,11 @@
         />
         <meta
             name="twitter:image"
-            content="https://abdullahwaqar.com/tabdrift/showcase01.png"
+            content="https://abdullahwaqar.com/tabdrift/assets/social/tabdrift-social-1200x630.png"
         />
         <meta
             name="twitter:image:alt"
-            content="Tabdrift's search box open over a web page in Firefox"
+            content="Tabdrift: switch tabs, search history and the web from one box in Firefox"
         />
 
         <link rel="icon" type="image/png" sizes="32x32" href="./icon-32.png" />
@@ -73,7 +76,15 @@
                         "url": "https://abdullahwaqar.com/tabdrift",
                         "downloadUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
                         "installUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
-                        "screenshot": "https://abdullahwaqar.com/tabdrift/showcase01.png",
+                        "screenshot": [
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/01-switch-tabs.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/02-type-to-find.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/03-web-search.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/04-history-by-site.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/05-clean-links.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/06-new-tab.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/07-close-tabs.png"
+                        ],
                         "license": "https://github.com/abdullahwaqar/tabdrift/blob/main/LICENSE",
                         "isAccessibleForFree": true,
                         "codeRepository": "https://github.com/abdullahwaqar/tabdrift",
@@ -817,26 +828,68 @@
                 pointer-events: none;
             }
 
+            /* screenshot gallery */
+            .gallery {
+                padding-bottom: 56px;
+            }
             .shot-frame {
                 border-radius: 12px;
                 overflow: hidden;
                 border: 1px solid var(--border);
                 background: var(--bg-raised);
-                margin-bottom: 8px;
             }
-            .shot-frame img {
+            .shot {
+                margin: 0;
+            }
+            .shot img {
                 display: block;
                 width: 100%;
                 height: auto;
+                aspect-ratio: 1280 / 800;
+                background: var(--bg-raised-2);
             }
-            .shot-caption {
-                padding: 12px 14px;
-                font-size: 12.5px;
+            .shot figcaption {
+                padding: 12px 16px;
+                font-size: 13px;
                 color: var(--text-dim);
                 border-top: 1px solid var(--border);
             }
-            .showcase {
-                padding-bottom: 56px;
+            .shot-tabs {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                margin-top: 14px;
+            }
+            .shot-tabs button {
+                font: inherit;
+                font-size: 12.5px;
+                padding: 7px 13px;
+                border-radius: 999px;
+                background: var(--bg-raised-2);
+                border: 1px solid var(--border);
+                color: var(--text-dim);
+                cursor: pointer;
+            }
+            .shot-tabs button:hover {
+                color: var(--text);
+                border-color: var(--border-strong);
+            }
+            .shot-tabs button[aria-selected="true"] {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: #fff;
+            }
+            .shot-tabs button:focus-visible {
+                outline: 2px solid var(--accent);
+                outline-offset: 2px;
+            }
+            .visually-hidden {
+                position: absolute;
+                width: 1px;
+                height: 1px;
+                overflow: hidden;
+                clip: rect(0 0 0 0);
+                white-space: nowrap;
             }
 
             /* search engine picker (customize) */
@@ -997,6 +1050,7 @@
                     <span>Tabdrift</span>
                 </a>
                 <div class="nav-links">
+                    <a href="#screenshots">Screenshots</a>
                     <a href="#how">How it works</a>
                     <a href="#search">Web search</a>
                     <a href="#history">History</a>
@@ -1150,20 +1204,261 @@
                 </div>
             </section>
 
-            <div class="showcase">
+            <section
+                class="gallery"
+                id="screenshots"
+                aria-labelledby="gallery-title"
+            >
+                <h2 class="visually-hidden" id="gallery-title">Screenshots</h2>
                 <div class="shot-frame">
-                    <img
-                        src="https://abdullahwaqar.com/tabdrift/showcase01.png"
-                        alt="Tabdrift's search box open over a web page in Firefox, listing matching tabs"
-                        width="668"
-                        height="231"
-                        decoding="async"
-                    />
+                    <figure
+                        class="shot"
+                        id="shot-1"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-1"
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/assets/web/01-switch-tabs-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/assets/web/01-switch-tabs-960.webp   960w,
+                                https://abdullahwaqar.com/assets/web/01-switch-tabs-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Tabdrift listing open tabs, most recent first, with a row to close a duplicate tab"
+                            loading="eager"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Your tabs, most recent first. One shortcut from any
+                            page.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-2"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-2"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/assets/web/02-type-to-find-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/assets/web/02-type-to-find-960.webp   960w,
+                                https://abdullahwaqar.com/assets/web/02-type-to-find-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Typing plane.so in Tabdrift shows a matching tab, an address row, a web search row and a history result"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Tabs, web search and history in one list as you
+                            type.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-3"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-3"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/assets/web/03-web-search-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/assets/web/03-web-search-960.webp   960w,
+                                https://abdullahwaqar.com/assets/web/03-web-search-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Typing esp32 pinout g in Tabdrift puts a Google search for esp32 pinout at the top"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Put g, b or d before or after a search to pick
+                            Google, Bing or DuckDuckGo.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-4"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-4"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/assets/web/04-history-by-site-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/assets/web/04-history-by-site-960.webp   960w,
+                                https://abdullahwaqar.com/assets/web/04-history-by-site-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Tabdrift history results grouped by site, with app.acmecrm.com expanded to show its pages"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            History grouped by site. Expand a site to see its
+                            pages.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-5"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-5"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/assets/web/05-clean-links-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/assets/web/05-clean-links-960.webp   960w,
+                                https://abdullahwaqar.com/assets/web/05-clean-links-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="A pasted LinkedIn redirect link in Tabdrift, unwrapped into a clean link with tracking parameters removed"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Paste a link to open it or copy a clean version
+                            without trackers.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-6"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-6"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/assets/web/06-new-tab-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/assets/web/06-new-tab-960.webp   960w,
+                                https://abdullahwaqar.com/assets/web/06-new-tab-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Tabdrift open as a toolbar popup on the Firefox new tab page, searching DuckDuckGo"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            On the new tab page, Tabdrift opens from the
+                            toolbar.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-7"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-7"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/assets/web/07-close-tabs-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/assets/web/07-close-tabs-960.webp   960w,
+                                https://abdullahwaqar.com/assets/web/07-close-tabs-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Tabdrift after closing a tab with Ctrl+D, with the highlight moved to the next tab"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Ctrl+D closes the highlighted tab. Duplicates close
+                            in one Enter.
+                        </figcaption>
+                    </figure>
                 </div>
-                <div class="shot-caption">
-                    Tabdrift in the middle of a search
+                <div class="shot-tabs" role="tablist" aria-label="Screenshots">
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-1"
+                        aria-controls="shot-1"
+                        aria-selected="true"
+                        tabindex="0"
+                    >
+                        Your tabs
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-2"
+                        aria-controls="shot-2"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Type to find
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-3"
+                        aria-controls="shot-3"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Web search
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-4"
+                        aria-controls="shot-4"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        History by site
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-5"
+                        aria-controls="shot-5"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Clean links
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-6"
+                        aria-controls="shot-6"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        New tab page
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-7"
+                        aria-controls="shot-7"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Close tabs
+                    </button>
                 </div>
-            </div>
+            </section>
 
             <section class="block" id="how">
                 <div class="block-head">
@@ -2877,6 +3172,41 @@
                         .focus();
                 });
                 setEngine("google");
+
+                // screenshot gallery: click a label, or use the arrow keys
+                const shotTabs = [
+                    ...document.querySelectorAll('.shot-tabs [role="tab"]'),
+                ];
+                const showShot = (tab, focus) => {
+                    shotTabs.forEach((t) => {
+                        const on = t === tab;
+                        t.setAttribute("aria-selected", String(on));
+                        t.tabIndex = on ? 0 : -1;
+                        document.getElementById(
+                            t.getAttribute("aria-controls"),
+                        ).hidden = !on;
+                    });
+                    if (focus) {
+                        tab.focus();
+                    }
+                };
+                shotTabs.forEach((tab, i) => {
+                    tab.addEventListener("click", () => showShot(tab, false));
+                    tab.addEventListener("keydown", (e) => {
+                        const moves = {
+                            ArrowRight: 1,
+                            ArrowLeft: -1,
+                            Home: -i,
+                            End: shotTabs.length - 1 - i,
+                        };
+                        if (!(e.key in moves)) {
+                            return;
+                        }
+                        e.preventDefault();
+                        const n = shotTabs.length;
+                        showShot(shotTabs[(i + moves[e.key] + n) % n], true);
+                    });
+                });
 
                 // position preview
                 var miniBody = document.getElementById("mini-body");
