@@ -141,6 +141,47 @@ like tracking are left exactly as they were. Everything runs locally.
 The `clipboardWrite` permission is used to copy, and `contextMenus` for the
 right-click item. Nothing is sent anywhere.
 
+## New tab page
+
+Ctrl+T opens Tabdrift's own page instead of Firefox Home. It has:
+
+- A clock and the date, with 12 or 24 hour time and optional seconds.
+- A search box that opens the Tabdrift palette, so tabs, history and web
+  search work the same as everywhere else. You can also just start typing
+  on the page, or press `/`.
+- Shortcuts: the sites Firefox shows on its own new tab page, plus any you
+  pin. Pin, edit, remove or drag pinned ones to reorder from the `⋯` menu.
+- Weather for a place you pick (off by default).
+- A to-do list and a focus timer. The timer keeps running when you close
+  the tab, and can send a notification when a session ends.
+- A background: Paper's animated grain gradient with 7 presets and full
+  control over shape, colors, softness, distortion, grain, speed, zoom and
+  rotation. Or your own picture with dim and blur, or a plain color.
+
+Everything is set from **Customize** at the top right of the page. The
+gradient holds still if your system asks for reduced motion.
+
+Firefox puts the cursor in the address bar on every new tab, and
+extensions can't change that. Click the page, press `/` or use the
+Tabdrift shortcut to search from the page instead.
+
+To go back to Firefox Home, pick it under Settings, Home, New tabs.
+
+### What it uses
+
+- `topSites` for the shortcuts (same history access the palette already has).
+- `alarms` so the focus timer can end on time with no tab open.
+- `notifications`, only if you turn on timer notifications. Firefox asks first.
+- Weather comes from [Open-Meteo](https://open-meteo.com). Only the place
+  you pick is sent, after you agree in Firefox's data consent prompt.
+  Nothing else on the page talks to the network.
+
+The gradient is [Paper Shaders](https://github.com/paper-design/shaders)
+(Apache-2.0). Text is set in
+[Bertioga Sans](https://github.com/cssobral2013/Bertioga-Sans) (SIL Open
+Font License 1.1, see `public/fonts/OFL.txt`), cut down to Latin with
+`scripts/subset-fonts.sh`.
+
 [<img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the Add-on for Firefox" width="172">](https://addons.mozilla.org/firefox/addon/tabdrift/)
 
 ## Install
@@ -179,7 +220,9 @@ npm version patch   # or minor / major
   settings page
 - `lib/`, shared settings storage, the clipboard helper, and the pure
   email and link helpers in `utils.ts`
+- `entrypoints/newtab/` and `lib/newtab/`, the new tab page and its widgets
 - `public/icons/`, extension icons
+- `public/fonts/`, Bertioga Sans (Latin subset) and its license
 - `site/`, the standalone marketing page (deployable as-is to Netlify
   or any static host)
 

@@ -347,6 +347,20 @@
                 gap: 4px;
             }
 
+            button.secondary {
+                padding: 7px 12px;
+                border: 1px solid var(--border-strong);
+                border-radius: 8px;
+                background: var(--bg-raised);
+                color: var(--text);
+                font: inherit;
+                font-size: 12.5px;
+                white-space: nowrap;
+                cursor: pointer;
+            }
+            button.secondary:hover {
+                border-color: var(--accent);
+            }
             footer {
                 display: flex;
                 align-items: center;
@@ -590,6 +604,28 @@
                     </div>
                     <div class="row-control">
                         <div id="clean-shortcut"></div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <span class="row-title">New tab page</span>
+                        <p class="row-hint">
+                            Ctrl+T opens Tabdrift's own page: a clock, search,
+                            shortcuts, to-do list and focus timer over a grain
+                            gradient. Change it with Customize at its top right.
+                            To go back to Firefox's page, pick it under
+                            Settings, Home, New tabs.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <button
+                            id="open-newtab"
+                            class="secondary"
+                            type="button"
+                        >
+                            Open a new tab
+                        </button>
                     </div>
                 </div>
             </section>

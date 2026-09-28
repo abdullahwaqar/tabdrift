@@ -79,27 +79,36 @@ const FUSE_OPTIONS = {
     ignoreLocation: true,
 };
 
-/** Where the palette runs: over a web page, or in the toolbar popup on pages Firefox won't let us script. */
-export type PaletteMode = "page" | "popup";
+/**
+ * Where the palette runs: over a web page, in the toolbar popup on pages Firefox won't let us script,
+ * or over Tabdrift's own new tab page.
+ */
+export type PaletteMode = "page" | "popup" | "newtab";
 
 export interface PaletteOrigin {
-    /** The tab the palette belongs to. Only needed in popup mode; in a page the background knows it already. */
+    /** The tab the palette belongs to. Needed in the popup, where the background can't tell which tab we mean. */
     tabId?: number;
     url?: string;
+}
+
+export interface PaletteController {
+    /** Opens the palette, with `text` already typed in. Replaces whatever was typed before. */
+    show(text?: string): void;
 }
 
 // Empty tabs, where opening a result should replace the tab like the address bar does.
 const BLANK_PAGES = ["about:newtab", "about:home", "about:blank", "about:privatebrowsing"];
 
-export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}) {
+export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}): PaletteController {
     const inPopup = mode === "popup";
+    const onNewTab = mode === "newtab";
     /** In a blank tab, Enter loads the result right here instead of opening yet another tab. */
-    const loadHere = inPopup && BLANK_PAGES.some((p) => (origin.url ?? "").startsWith(p));
+    const loadHere = onNewTab || (inPopup && BLANK_PAGES.some((p) => (origin.url ?? "").startsWith(p)));
     let closeTimer: ReturnType<typeof setTimeout> | null = null;
 
     /** Messages to the background. From the popup it can't tell which tab we mean, so we say. */
     function send<T = unknown>(message: Record<string, unknown>): Promise<T> {
-        const withOrigin = inPopup && origin.tabId !== undefined ? { ...message, fromTabId: origin.tabId } : message;
+        const withOrigin = origin.tabId !== undefined ? { ...message, fromTabId: origin.tabId } : message;
         return browser.runtime.sendMessage(withOrigin) as Promise<T>;
     }
 
@@ -263,7 +272,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}) {
         wrapper.style.setProperty("--accent", settings.accent);
     }
 
-    async function showOverlay() {
+    async function showOverlay(initialText = "") {
         ensureOverlay();
         settings = await getSettings();
         applyPositionAndAccent();
@@ -291,8 +300,9 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}) {
 
         // Take focus straight away, before the tab list has even loaded.
         if (input) {
-            input.value = "";
+            input.value = initialText;
             input.focus();
+            input.setSelectionRange(initialText.length, initialText.length);
         }
 
         tabs = await send({ action: "getTabs" });
@@ -1100,7 +1110,8 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}) {
 
     async function switchToTab(tabId: number) {
         hideOverlay();
-        await send({ action: "switchTab", tabId });
+        // Like the address bar: switching away from an untouched new tab closes it.
+        await send({ action: "switchTab", tabId, closeOrigin: onNewTab });
     }
 
     /** A site row opens the site's front page (the site sorts out login and redirects). Pass exact to open the last page instead. */
@@ -1178,9 +1189,11 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}) {
         }
     }
 
+    const controller: PaletteController = { show: (text) => void showOverlay(text) };
+
     if (inPopup) {
         void showOverlay();
-        return;
+        return controller;
     }
 
     browser.runtime.onMessage.addListener((message) => {
@@ -1194,6 +1207,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}) {
             showToast(message.text);
         }
     });
+    return controller;
 }
 
 const COPY_ICON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>`;

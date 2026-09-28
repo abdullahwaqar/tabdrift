@@ -5,8 +5,10 @@ export default defineConfig({
     manifest: {
         name: "Tabdrift",
         description: "A fast tab switcher. Default: Alt+Shift+K.",
-        version: "1.2.0",
-        permissions: ["tabs", "activeTab", "storage", "scripting", "history", "clipboardWrite", "contextMenus"],
+        version: "2.0.0",
+        permissions: ["tabs", "activeTab", "storage", "scripting", "history", "clipboardWrite", "contextMenus", "topSites", "alarms"],
+        // Asked for from the new tab page when you turn on "Notify when a session ends".
+        optional_permissions: ["notifications"],
         commands: {
             _execute_action: {
                 suggested_key: {
@@ -41,6 +43,8 @@ export default defineConfig({
                 strict_min_version: "109.0",
                 data_collection_permissions: {
                     required: ["none"],
+                    // Only if you turn on the new tab weather: the place you pick goes to Open-Meteo.
+                    optional: ["locationInfo"],
                 },
             },
         },

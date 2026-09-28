@@ -1,5 +1,8 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { copyText } from "../lib/clipboard";
+import { getNewTabSettings } from "../lib/newtab/settings";
+import type { TimerState } from "../lib/newtab/timer-state";
+import { readTimer, settle, TIMER_ALARM_PREFIX, TIMER_KEY, writeTimer } from "../lib/newtab/timer-state";
 import { COMMAND_NAME, getSettings } from "../lib/settings";
 import { cleanUrl } from "../lib/utils";
 
@@ -11,6 +14,18 @@ const MAX_HISTORY_RESULTS = 300;
 export default defineBackground(() => {
     applyStoredShortcut();
     syncAllPopups();
+    void scheduleTimerAlarm();
+
+    browser.storage.onChanged.addListener((changes, area) => {
+        if (area === "local" && changes[TIMER_KEY]) {
+            void scheduleTimerAlarm();
+        }
+    });
+    browser.alarms.onAlarm.addListener((alarm) => {
+        if (alarm.name.startsWith(TIMER_ALARM_PREFIX)) {
+            void finishTimer(Number(alarm.name.slice(TIMER_ALARM_PREFIX.length)));
+        }
+    });
 
     // Only fires on tabs without the popup set, i.e. normal pages.
     browser.action.onClicked.addListener((tab) => {
@@ -108,6 +123,10 @@ export default defineBackground(() => {
                 .then(async (tab) => {
                     await browser.tabs.update(message.tabId, { active: true });
                     await browser.windows.update(tab.windowId, { focused: true });
+                    // Switching away from the new tab page closes it, so switching doesn't leave empty tabs behind.
+                    if (message.closeOrigin === true && originTabId !== undefined && originTabId !== message.tabId) {
+                        await browser.tabs.remove(originTabId);
+                    }
                     sendResponse({ success: true });
                 })
                 .catch((err) => {
@@ -216,8 +235,17 @@ const RESTRICTED_HOSTS = new Set([
 ]);
 
 const POPUP_PAGE = "/palette.html";
+const NEWTAB_PAGE = "/newtab.html";
+
+/** Tabdrift's own new tab page. It runs the palette itself, so it needs neither the popup nor injection. */
+function isOwnNewTab(url: string | undefined): boolean {
+    return !!url && url.split(/[?#]/)[0] === browser.runtime.getURL(NEWTAB_PAGE);
+}
 
 function isRestrictedUrl(url: string | undefined): boolean {
+    if (isOwnNewTab(url)) {
+        return false;
+    }
     if (!url) {
         return true;
     }
@@ -260,6 +288,13 @@ function usePopupFallback(tabId: number) {
 
 async function toggleOverlay(tab: { id?: number; url?: string }) {
     if (tab.id === undefined) {
+        return;
+    }
+    if (isOwnNewTab(tab.url)) {
+        // Extension pages in a tab get tabs.sendMessage too. Nothing to inject.
+        await browser.tabs.sendMessage(tab.id, { action: "showTabSearch" }).catch((err) => {
+            console.error("[tabdrift] new tab page didn't answer:", err);
+        });
         return;
     }
     const ok = await sendToTab(tab.id, { action: "showTabSearch" });
@@ -323,4 +358,61 @@ function flashBadge(tabId: number | undefined, ok: boolean) {
     } catch (err) {
         console.error("[tabdrift] badge update failed:", err);
     }
+}
+
+
+/** One alarm per running session, named after its deadline, so a stale alarm can never end a newer session. */
+async function scheduleTimerAlarm() {
+    try {
+        const state = await readTimer();
+        const wanted = state.status === "running" && state.endsAt !== null ? `${TIMER_ALARM_PREFIX}${state.endsAt}` : null;
+        // A new tab may settle a session a moment before its alarm fires. Keep that alarm: it sends the notification.
+        const justEnded = state.lastCompleted ? `${TIMER_ALARM_PREFIX}${state.lastCompleted.endsAt}` : null;
+        for (const alarm of await browser.alarms.getAll()) {
+            if (alarm.name.startsWith(TIMER_ALARM_PREFIX) && alarm.name !== wanted && alarm.name !== justEnded) {
+                await browser.alarms.clear(alarm.name);
+            }
+        }
+        if (!wanted || state.endsAt === null) {
+            return;
+        }
+        if (state.endsAt <= Date.now()) {
+            // Ran out while the browser was closed. Settle quietly; a notification now would be old news.
+            await writeTimer(settle(state));
+            return;
+        }
+        if (!(await browser.alarms.get(wanted))) {
+            browser.alarms.create(wanted, { when: state.endsAt });
+        }
+    } catch (err) {
+        console.error("[tabdrift] timer alarm failed:", err);
+    }
+}
+
+async function finishTimer(endsAt: number) {
+    const state = await readTimer();
+    let ended: TimerState["lastCompleted"] = null;
+    if (state.status === "running" && state.endsAt === endsAt) {
+        const next = settle(state, Math.max(Date.now(), endsAt));
+        await writeTimer(next);
+        ended = next.lastCompleted;
+    } else if (state.lastCompleted?.endsAt === endsAt) {
+        // An open new tab got there first. The session still ended, so the notification still goes out.
+        ended = state.lastCompleted;
+    }
+    if (!ended) {
+        return;
+    }
+
+    const settings = await getNewTabSettings();
+    if (!settings.timer.notify || !(await browser.permissions.contains({ permissions: ["notifications"] }))) {
+        return;
+    }
+    const focusDone = ended.phase === "focus";
+    await browser.notifications.create(`tabdrift-timer-done-${endsAt}`, {
+        type: "basic",
+        iconUrl: browser.runtime.getURL("/icons/icon-128.png"),
+        title: focusDone ? "Focus session done" : "Break's over",
+        message: focusDone ? `Take a ${settings.timer.breakMinutes} minute break.` : `Ready for another ${settings.timer.focusMinutes} minutes?`,
+    });
 }

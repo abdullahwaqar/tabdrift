@@ -2,7 +2,7 @@
     "name": "tabdrift",
     "description": "A fast, keyboard-first tab switcher for Firefox",
     "private": true,
-    "version": "1.2.0",
+    "version": "2.0.0",
     "type": "module",
     "license": "MIT",
     "author": "Abdullah Waqar (https://www.abdullahwaqar.com/)",
@@ -23,6 +23,7 @@
         "version": "node scripts/sync-version.mjs && git add wxt.config.ts"
     },
     "dependencies": {
+        "@paper-design/shaders": "0.0.81",
         "fuse.js": "^7.0.0"
     },
     "devDependencies": {

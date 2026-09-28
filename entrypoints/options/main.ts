@@ -16,6 +16,9 @@ const enginePicker = document.getElementById("engine-picker") as HTMLDivElement;
 const cleanShortcut = document.getElementById("clean-shortcut") as HTMLDivElement;
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const status = document.getElementById("status") as HTMLDivElement;
+const openNewTab = document.getElementById("open-newtab") as HTMLButtonElement;
+
+openNewTab.addEventListener("click", () => void browser.tabs.create({}));
 
 let recording = false;
 let currentShortcut = DEFAULT_SETTINGS.shortcut;
