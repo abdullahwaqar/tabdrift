@@ -3,10 +3,12 @@
     <head>
         <meta charset="UTF-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <title>Tabdrift: Firefox tab switcher, history and web search</title>
+        <title>
+            Tabdrift: Firefox tab switcher, web search and new tab page
+        </title>
         <meta
             name="description"
-            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search Google, Bing or DuckDuckGo."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
         />
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <meta name="author" content="Abdullah Waqar" />
@@ -18,11 +20,11 @@
         <meta property="og:locale" content="en_US" />
         <meta
             property="og:title"
-            content="Tabdrift: Firefox tab switcher, history and web search"
+            content="Tabdrift: Firefox tab switcher, web search and new tab page"
         />
         <meta
             property="og:description"
-            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search Google, Bing or DuckDuckGo."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
         />
         <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
         <meta
@@ -42,11 +44,11 @@
         <meta name="twitter:creator" content="@abdullah_wc" />
         <meta
             name="twitter:title"
-            content="Tabdrift: Firefox tab switcher, history and web search"
+            content="Tabdrift: Firefox tab switcher, web search and new tab page"
         />
         <meta
             name="twitter:description"
-            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search Google, Bing or DuckDuckGo."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
         />
         <meta
             name="twitter:image"
@@ -72,7 +74,7 @@
                         "applicationSubCategory": "Browser extension",
                         "operatingSystem": "Windows, macOS, Linux (Firefox)",
                         "browserRequirements": "Requires Firefox 109 or later",
-                        "description": "A free, open source, keyboard-first tab switcher for Firefox. Press a shortcut to jump to an open tab, reopen a page from history, search Google, Bing or DuckDuckGo, or open an address. Works on the new tab page too. Paste an email or link to copy its domain or a tracker-free URL, and close tabs from the same box.",
+                        "description": "A free, open source, keyboard-first tab switcher for Firefox. Press a shortcut to jump to an open tab, reopen a page from history, search Google, Bing or DuckDuckGo, or open an address. Replaces the new tab page with a clock, search box, shortcuts, weather, a to-do list and a focus timer over an animated grain gradient. Paste an email or link to copy its domain or a tracker-free URL, and close tabs from the same box.",
                         "url": "https://abdullahwaqar.com/tabdrift",
                         "downloadUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
                         "installUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
@@ -93,7 +95,10 @@
                             "History search grouped by site",
                             "Web search with Google, Bing or DuckDuckGo using a one-letter key",
                             "Open typed addresses like github.com or localhost:5173",
-                            "Works on the new tab page and other locked Firefox pages",
+                            "A new tab page that opens with the cursor in its search box",
+                            "Shortcuts, weather, a to-do list and a focus timer on the new tab page",
+                            "Animated grain gradient, picture or plain color backgrounds",
+                            "Works on addons.mozilla.org and other locked Firefox pages from the toolbar",
                             "Copy a link without tracking parameters",
                             "Get the domain from an email address",
                             "Close tabs and duplicate tabs from the keyboard"
@@ -134,7 +139,15 @@
                                 "name": "Does it work on the new tab page?",
                                 "acceptedAnswer": {
                                     "@type": "Answer",
-                                    "text": "Yes. Firefox doesn't let extensions draw on the new tab page or other about: pages, so there the same shortcut opens Tabdrift from the toolbar instead. On an empty tab, Enter loads the result in that tab, so it behaves like the address bar."
+                                    "text": "Yes. Tabdrift replaces the Firefox new tab page with its own, and the cursor starts in its search box, so you can press Ctrl+T and type. On pages Firefox locks for extensions, like about:addons and addons.mozilla.org, the same shortcut opens Tabdrift from the toolbar instead."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Can I go back to the normal Firefox new tab page?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Yes. In Firefox, open Settings, then Home, and under New tabs pick Firefox Home. The rest of Tabdrift keeps working."
                                 }
                             },
                             {
@@ -150,7 +163,7 @@
                                 "name": "Does Tabdrift send my tabs, history or searches anywhere?",
                                 "acceptedAnswer": {
                                     "@type": "Answer",
-                                    "text": "No. Tab and history matching happens inside your browser and nothing is sent to a server. Web searches go straight from Firefox to the engine you picked, the same as searching from the address bar. Tabdrift doesn't log them."
+                                    "text": "No. Tab and history matching happens inside your browser and nothing is sent to a server. Web searches go straight from Firefox to the engine you picked, the same as searching from the address bar. The only request Tabdrift makes itself is for the optional weather on the new tab page: it sends the place you picked to Open-Meteo, and only after you agree in Firefox's consent prompt."
                                 }
                             },
                             {
@@ -942,6 +955,272 @@
                 max-width: 36ch;
             }
 
+            /* new tab preview */
+            .nt-preview {
+                position: relative;
+                container-type: inline-size;
+                aspect-ratio: 16 / 10;
+                margin-bottom: 24px;
+                border-radius: 12px;
+                border: 1px solid var(--border);
+                overflow: hidden;
+                background: #04060f;
+                box-shadow: 0 30px 60px -24px rgba(0, 0, 0, 0.6);
+            }
+            .nt-bg,
+            .nt-bg::after {
+                position: absolute;
+                inset: 0;
+            }
+            .nt-bg {
+                background:
+                    radial-gradient(
+                        38% 55% at 12% 88%,
+                        #f2b38f 0,
+                        rgba(242, 179, 143, 0) 70%
+                    ),
+                    radial-gradient(
+                        50% 70% at 20% 70%,
+                        #5aa9ff 0,
+                        rgba(90, 169, 255, 0) 70%
+                    ),
+                    radial-gradient(
+                        45% 60% at 92% 12%,
+                        #5aa9ff 0,
+                        rgba(90, 169, 255, 0) 70%
+                    ),
+                    radial-gradient(
+                        35% 45% at 100% 0%,
+                        #f2b38f 0,
+                        rgba(242, 179, 143, 0) 70%
+                    ),
+                    radial-gradient(
+                        60% 80% at 80% 90%,
+                        #2a1470 0,
+                        rgba(42, 20, 112, 0) 70%
+                    ),
+                    radial-gradient(
+                        55% 70% at 45% 40%,
+                        #1b3bd8 0,
+                        rgba(27, 59, 216, 0) 70%
+                    ),
+                    #04060f;
+                background-size: 130% 130%;
+                animation: nt-drift 26s ease-in-out infinite alternate;
+            }
+            /* Grain, like the real gradient's noise. */
+            .nt-bg::after {
+                content: "";
+                background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+                mix-blend-mode: overlay;
+                opacity: 0.6;
+            }
+            /* The same soft shade the real page puts behind its text. */
+            .nt-ui {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding-top: 9cqw;
+                background: radial-gradient(
+                    90% 75% at 50% 42%,
+                    rgba(0, 0, 0, 0.3),
+                    rgba(0, 0, 0, 0.08) 70%,
+                    transparent
+                );
+                color: #f6f5f3;
+                text-align: center;
+            }
+            @keyframes nt-drift {
+                from {
+                    background-position: 0% 0%;
+                }
+                to {
+                    background-position: 100% 100%;
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .nt-bg {
+                    animation: none;
+                }
+            }
+            .nt-clock {
+                font-size: 11cqw;
+                font-weight: 300;
+                line-height: 0.95;
+                letter-spacing: -0.045em;
+                font-variant-numeric: tabular-nums;
+                text-shadow: 0 2px 30px rgba(0, 0, 0, 0.25);
+            }
+            .nt-date {
+                display: flex;
+                gap: 2cqw;
+                margin-top: 1.2cqw;
+                font-size: 1.6cqw;
+                font-weight: 500;
+                color: rgba(246, 245, 243, 0.72);
+            }
+            .nt-weather {
+                color: rgba(246, 245, 243, 0.72);
+            }
+            .nt-search {
+                display: flex;
+                align-items: center;
+                gap: 1.2cqw;
+                width: 52cqw;
+                height: 5cqw;
+                margin-top: 3.4cqw;
+                padding: 0 1.8cqw;
+                border-radius: 1.4cqw;
+                background: rgba(16, 17, 23, 0.45);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                backdrop-filter: blur(14px);
+                font-size: 1.55cqw;
+            }
+            .nt-search svg {
+                width: 1.7cqw;
+                height: 1.7cqw;
+                color: var(--accent);
+                flex-shrink: 0;
+            }
+            .nt-caret {
+                width: 1px;
+                height: 2.2cqw;
+                margin-right: -0.8cqw;
+                background: #f6f5f3;
+                animation: nt-blink 1.1s steps(1) infinite;
+            }
+            @keyframes nt-blink {
+                50% {
+                    opacity: 0;
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .nt-caret {
+                    animation: none;
+                }
+            }
+            .nt-placeholder {
+                color: rgba(246, 245, 243, 0.45);
+            }
+            .nt-tiles {
+                display: flex;
+                gap: 1.6cqw;
+                margin-top: 3cqw;
+            }
+            .nt-tiles span {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 0.8cqw;
+                width: 6.8cqw;
+                font-size: 1.1cqw;
+                font-weight: 500;
+                color: rgba(246, 245, 243, 0.72);
+                white-space: nowrap;
+            }
+            .nt-tiles i {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 4.6cqw;
+                height: 4.6cqw;
+                border-radius: 1.3cqw;
+                background: rgba(16, 17, 23, 0.45);
+                border: 1px solid rgba(255, 255, 255, 0.14);
+                font-style: normal;
+                font-size: 1.8cqw;
+                color: #c9dcff;
+            }
+            .nt-tiles .nt-add i {
+                background: transparent;
+                border-style: dashed;
+                color: rgba(246, 245, 243, 0.45);
+            }
+            .nt-panel {
+                position: absolute;
+                bottom: 2.4cqw;
+                display: flex;
+                flex-direction: column;
+                gap: 0.7cqw;
+                padding: 1.6cqw 1.8cqw;
+                border-radius: 1.6cqw;
+                background: rgba(16, 17, 23, 0.5);
+                border: 1px solid rgba(255, 255, 255, 0.12);
+                backdrop-filter: blur(14px);
+                font-size: 1.2cqw;
+                color: rgba(246, 245, 243, 0.72);
+                text-align: left;
+            }
+            .nt-panel b {
+                color: #f6f5f3;
+                font-weight: 600;
+            }
+            .nt-todo {
+                left: 2.4cqw;
+                width: 22cqw;
+            }
+            .nt-todo span {
+                display: flex;
+                align-items: center;
+                gap: 0.9cqw;
+            }
+            .nt-todo i {
+                width: 1.3cqw;
+                height: 1.3cqw;
+                border-radius: 0.35cqw;
+                border: 1px solid rgba(255, 255, 255, 0.4);
+            }
+            .nt-todo i.done {
+                background: var(--accent);
+                border-color: var(--accent);
+            }
+            .nt-timer {
+                right: 2.4cqw;
+                align-items: center;
+                min-width: 17cqw;
+            }
+            .nt-timer b {
+                font-size: 3.6cqw;
+                font-weight: 300;
+                letter-spacing: -0.03em;
+                font-variant-numeric: tabular-nums;
+            }
+            @media (max-width: 560px) {
+                .nt-panel {
+                    display: none;
+                }
+            }
+            .nt-swatches {
+                margin-top: auto;
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 8px;
+            }
+            .nt-swatches span {
+                aspect-ratio: 4 / 3;
+                border-radius: 7px;
+                border: 1px solid var(--border);
+                background:
+                    radial-gradient(
+                        circle at 20% 25%,
+                        var(--a) 0,
+                        transparent 60%
+                    ),
+                    radial-gradient(
+                        circle at 80% 30%,
+                        var(--b) 0,
+                        transparent 58%
+                    ),
+                    radial-gradient(
+                        circle at 65% 85%,
+                        var(--c) 0,
+                        transparent 60%
+                    ),
+                    var(--d);
+            }
+
             /* key sequence (new tab) */
             .sequence {
                 display: flex;
@@ -1053,6 +1332,7 @@
                     <a href="#screenshots">Screenshots</a>
                     <a href="#how">How it works</a>
                     <a href="#search">Web search</a>
+                    <a href="#new-tab">New tab</a>
                     <a href="#history">History</a>
                     <a href="#utilities">Utilities</a>
                     <a href="#cleanup">Clean up</a>
@@ -1087,7 +1367,8 @@
                         right tab. Not open? It finds the page in your history.
                         Not in history either? Enter searches Google, Bing or
                         DuckDuckGo. Paste an email or a link and it hands you
-                        the domain or a tracker-free URL.
+                        the domain or a tracker-free URL. And Ctrl+T lands on a
+                        new tab page with the cursor already in its search box.
                     </p>
                     <div class="cta-row">
                         <a
@@ -1607,69 +1888,160 @@
 
             <section class="block" id="new-tab">
                 <div class="block-head">
-                    <h2>Works on the new tab page too</h2>
+                    <h2>A new tab page that's ready when you are</h2>
                     <p>
-                        Firefox doesn't let extensions draw on its own pages:
-                        the new tab page, other about: pages and
-                        addons.mozilla.org. There, the same shortcut opens
-                        Tabdrift from the toolbar instead, with the same search,
-                        keys and settings.
+                        Ctrl+T opens Tabdrift's own page instead of Firefox
+                        Home. The cursor starts in its search box, so you type
+                        straight away: tabs, history, the web and addresses, all
+                        from the same box as the overlay.
                     </p>
                 </div>
+
+                <div
+                    class="nt-preview"
+                    role="img"
+                    aria-label="Preview of the Tabdrift new tab page: a large clock, the date and weather, a search box, a row of site shortcuts, a to-do list and a focus timer over a blue and peach grain gradient"
+                >
+                    <div class="nt-bg" aria-hidden="true"></div>
+                    <div class="nt-ui" aria-hidden="true">
+                        <div class="nt-clock">9:41</div>
+                        <div class="nt-date">
+                            <span>Monday, 28 September</span>
+                            <span class="nt-weather"
+                                >31&deg; Clear in Dubai</span
+                            >
+                        </div>
+                        <div class="nt-search">
+                            <svg viewBox="0 0 24 24" width="14" height="14">
+                                <path
+                                    fill="none"
+                                    stroke="currentColor"
+                                    stroke-width="2"
+                                    stroke-linecap="round"
+                                    d="M11 4a7 7 0 1 0 0 14 7 7 0 0 0 0-14Zm10 17-5.6-5.6"
+                                />
+                            </svg>
+                            <span class="nt-caret"></span>
+                            <span class="nt-placeholder"
+                                >Search tabs, history or the web</span
+                            >
+                        </div>
+                        <div class="nt-tiles">
+                            <span><i>G</i>GitHub</span>
+                            <span><i>M</i>Gmail</span>
+                            <span><i>Y</i>YouTube</span>
+                            <span><i>H</i>Hacker News</span>
+                            <span><i>F</i>Figma</span>
+                            <span><i>D</i>Docs</span>
+                            <span class="nt-add"><i>+</i>Add</span>
+                        </div>
+                        <div class="nt-panel nt-todo">
+                            <b>To do</b>
+                            <span><i class="done"></i>Order devkits</span>
+                            <span><i></i>Reply to client</span>
+                        </div>
+                        <div class="nt-panel nt-timer">
+                            <b>24:12</b>
+                            <span>Focusing until 10:05</span>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="util-grid">
                     <div class="util-card">
-                        <h3>Replaces the empty tab</h3>
+                        <h3>Search first</h3>
                         <p>
-                            On a new tab, Enter loads the result right there
-                            instead of opening yet another tab. Shift+Enter
-                            opens a new one if you want it.
+                            Firefox normally parks the cursor in the address
+                            bar. Tabdrift's page takes it instead, so Ctrl+T and
+                            typing is all it takes. Enter loads the result in
+                            that same tab.
                         </p>
                         <div class="sequence">
                             <span class="keycap">Ctrl</span>+<span
                                 class="keycap"
                                 >T</span
                             >
-                            <span class="then">then</span>
-                            <span class="keycap">Alt</span>+<span class="keycap"
-                                >Shift</span
-                            >+<span class="keycap">K</span>
                             <span class="then">then type, Enter</span>
                         </div>
                     </div>
                     <div class="util-card">
-                        <h3>Same box, same keys</h3>
+                        <h3>Widgets that stay out of the way</h3>
                         <p>
-                            Switch tabs, close them with Ctrl+D, open history,
-                            copy clean links. Everything the overlay does works
-                            in the toolbar version.
+                            Shortcuts to the sites you visit most, with your own
+                            pinned first. Weather for a place you pick, a to-do
+                            list, and a focus timer that keeps counting after
+                            you close the tab.
                         </p>
                         <div class="code-block">
-                            <span class="keep">about:newtab</span>
-                            <span class="dim">toolbar</span><br />
-                            <span class="keep">about:addons</span>
-                            <span class="dim">toolbar</span><br />
-                            <span class="keep">any other page</span>
-                            <span class="dim">overlay</span>
+                            <span class="keep">shortcuts</span>
+                            <span class="dim">pin, edit, reorder</span><br />
+                            <span class="keep">to do</span>
+                            <span class="dim">synced across open tabs</span
+                            ><br />
+                            <span class="keep">focus timer</span>
+                            <span class="dim">optional notification</span>
                         </div>
                     </div>
                     <div class="util-card">
-                        <h3>Pages it didn't expect</h3>
+                        <h3>A background with some life</h3>
                         <p>
-                            A few pages block extensions without saying so, like
-                            the built-in PDF viewer. The button flashes "!" the
-                            first time, and the next press opens Tabdrift from
-                            the toolbar.
+                            An animated grain gradient with seven presets, and
+                            full control over its shape, colors, grain and
+                            speed. Or use your own picture, or a plain color.
                         </p>
-                        <div class="key-row">
-                            <div>
-                                <span
-                                    >Tip: pin Tabdrift to the toolbar so it
-                                    opens right under its button.</span
-                                >
-                            </div>
+                        <div class="nt-swatches" aria-hidden="true">
+                            <span
+                                style="
+                                    --a: #1b3bd8;
+                                    --b: #5aa9ff;
+                                    --c: #f2b38f;
+                                    --d: #04060f;
+                                "
+                            ></span>
+                            <span
+                                style="
+                                    --a: #e0461c;
+                                    --b: #f0a054;
+                                    --c: #8a1238;
+                                    --d: #0d0503;
+                                "
+                            ></span>
+                            <span
+                                style="
+                                    --a: #00898c;
+                                    --b: #4cc2a4;
+                                    --c: #0b3d91;
+                                    --d: #00100f;
+                                "
+                            ></span>
+                            <span
+                                style="
+                                    --a: #7300ff;
+                                    --b: #eba8ff;
+                                    --c: #00bfff;
+                                    --d: #000000;
+                                "
+                            ></span>
+                            <span
+                                style="
+                                    --a: #ff7ab6;
+                                    --b: #6b5bff;
+                                    --c: #12d6ff;
+                                    --d: #05030c;
+                                "
+                            ></span>
                         </div>
                     </div>
                 </div>
+                <p class="util-note">
+                    Everything is set from Customize, at the top right of the
+                    page. The gradient holds still if your system asks for
+                    reduced motion. Prefer Firefox Home? Pick it under Settings,
+                    Home, New tabs, and the rest of Tabdrift keeps working. On
+                    pages Firefox locks for extensions, like about:addons and
+                    addons.mozilla.org, the same shortcut opens Tabdrift from
+                    the toolbar.
+                </p>
             </section>
 
             <section class="block" id="history">
@@ -2072,11 +2444,22 @@
                     <details>
                         <summary>Does it work on the new tab page?</summary>
                         <p>
-                            Yes. Firefox doesn&#x27;t let extensions draw on the
-                            new tab page or other about: pages, so there the
-                            same shortcut opens Tabdrift from the toolbar
-                            instead. On an empty tab, Enter loads the result in
-                            that tab, so it behaves like the address bar.
+                            Yes. Tabdrift replaces the Firefox new tab page with
+                            its own, and the cursor starts in its search box, so
+                            you can press Ctrl+T and type. On pages Firefox
+                            locks for extensions, like about:addons and
+                            addons.mozilla.org, the same shortcut opens Tabdrift
+                            from the toolbar instead.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>
+                            Can I go back to the normal Firefox new tab page?
+                        </summary>
+                        <p>
+                            Yes. In Firefox, open Settings, then Home, and under
+                            New tabs pick Firefox Home. The rest of Tabdrift
+                            keeps working.
                         </p>
                     </details>
                     <details>
@@ -2099,7 +2482,11 @@
                             browser and nothing is sent to a server. Web
                             searches go straight from Firefox to the engine you
                             picked, the same as searching from the address bar.
-                            Tabdrift doesn&#x27;t log them.
+                            Tabdrift doesn&#x27;t log them. The only request
+                            Tabdrift makes itself is for the optional weather on
+                            the new tab page: it sends the place you picked to
+                            Open-Meteo, and only after you agree in
+                            Firefox&#x27;s consent prompt.
                         </p>
                     </details>
                     <details>
