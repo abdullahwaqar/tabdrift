@@ -5,7 +5,7 @@ export default defineConfig({
     manifest: {
         name: "Tabdrift",
         description: "A fast tab switcher. Default: Alt+Shift+K.",
-        version: "2.0.0",
+        version: "2.0.2",
         permissions: ["tabs", "activeTab", "storage", "scripting", "history", "clipboardWrite", "contextMenus", "topSites", "alarms"],
         // Asked for from the new tab page when you turn on "Notify when a session ends".
         optional_permissions: ["notifications"],

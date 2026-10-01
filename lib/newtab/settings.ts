@@ -310,3 +310,46 @@ function sameGradient(a: GradientSettings, b: GradientSettings): boolean {
 export function newId(): string {
     return crypto.randomUUID();
 }
+
+const SETTINGS_CACHE_KEY = "tabdrift:newtab-settings";
+const ACCENT_CACHE_KEY = "tabdrift:accent";
+
+/**
+ * The last settings this page saved or read, kept in localStorage. storage.local can only be read
+ * asynchronously, and on a busy profile that wait is what makes a new tab feel slow. localStorage is
+ * synchronous, so the page can draw in its first frame and correct itself if the real value differs.
+ */
+export function readCachedSettings(): NewTabSettings | null {
+    try {
+        const raw = localStorage.getItem(SETTINGS_CACHE_KEY);
+        return raw ? withDefaults(JSON.parse(raw) as Partial<Record<Section, object>>) : null;
+    } catch {
+        // No cache or a broken one: the page starts from the defaults and fixes itself once storage answers.
+        return null;
+    }
+}
+
+export function cacheSettings(settings: NewTabSettings): void {
+    try {
+        localStorage.setItem(SETTINGS_CACHE_KEY, JSON.stringify(settings));
+    } catch {
+        // Only a speed-up. If it can't be written, the next open just draws a little later.
+    }
+}
+
+export function readCachedAccent(): string | null {
+    try {
+        const value = localStorage.getItem(ACCENT_CACHE_KEY);
+        return value && /^#[0-9a-f]{3,8}$/i.test(value) ? value : null;
+    } catch {
+        return null;
+    }
+}
+
+export function cacheAccent(accent: string): void {
+    try {
+        localStorage.setItem(ACCENT_CACHE_KEY, accent);
+    } catch {
+        // Same as above: only a speed-up.
+    }
+}

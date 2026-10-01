@@ -7,6 +7,8 @@ type ShortcutSettings = NewTabSettings["shortcuts"];
 
 export const TILES_PER_ROW = 8;
 
+const SITES_CACHE_KEY = "tabdrift:topsites";
+
 interface Tile {
     title: string;
     url: string;
@@ -66,6 +68,8 @@ export class Shortcuts {
     private settings: ShortcutSettings;
     private readonly save: (next: ShortcutSettings) => void;
     private topSites: TopSite[] = [];
+    /** How many top sites the last request asked Firefox for. */
+    private fetchedLimit = 0;
     /** Favicons by host, from top sites and open tabs. */
     private icons = new Map<string, string>();
     /** The ⋯ button the open menu belongs to. */
@@ -95,39 +99,64 @@ export class Shortcuts {
         });
         window.addEventListener("blur", () => this.closeMenu());
 
-        void this.loadSources().then(() => this.render());
+        // Draw the tiles from the last visit straight away, then refresh them from Firefox.
+        this.loadCache();
         this.render();
+        void this.loadSources();
     }
 
     update(settings: ShortcutSettings) {
         const topSitesTurnedOn = settings.topSites && !this.settings.topSites;
         this.settings = settings;
         this.el.hidden = !settings.show;
-        if (topSitesTurnedOn) {
-            void this.loadSources().then(() => this.render());
+        if (settings.topSites && (topSitesTurnedOn || this.wantedSites() > this.fetchedLimit)) {
+            void this.loadSources();
         }
         this.render();
     }
 
-    private async loadSources() {
-        const icons = new Map<string, string>();
-        try {
-            // Tabs first, so the (usually sharper) top-site icons win below.
-            const tabs = await browser.tabs.query({});
-            for (const tab of tabs) {
-                const icon = usableIcon(tab.favIconUrl);
-                const host = tab.url ? hostOf(tab.url) : "";
-                if (icon && host) {
-                    icons.set(host, icon);
-                }
-            }
-        } catch (err) {
-            console.warn("[tabdrift] tab icons unavailable:", err);
-        }
+    /** As many top sites as the rows can show, plus the ones you removed (they are skipped) and a spare. */
+    private wantedSites(): number {
+        return Math.min(30, this.settings.rows * TILES_PER_ROW + this.settings.pinned.length + this.settings.hidden.length + 2);
+    }
 
+    /** Top sites and their icons as of the last visit. Asking Firefox for icons can take a while on a big profile. */
+    private loadCache() {
+        try {
+            const raw = localStorage.getItem(SITES_CACHE_KEY);
+            if (!raw) {
+                return;
+            }
+            const cached = JSON.parse(raw) as { sites?: TopSite[]; icons?: [string, string][] };
+            if (Array.isArray(cached.sites)) {
+                this.topSites = cached.sites.filter((s) => typeof s?.url === "string" && /^https?:/i.test(s.url));
+            }
+            if (Array.isArray(cached.icons)) {
+                this.icons = new Map(cached.icons.filter(([host, url]) => typeof host === "string" && usableIcon(url)));
+            }
+        } catch {
+            // A broken cache only means the tiles fill in a moment later.
+        }
+    }
+
+    private saveCache() {
+        try {
+            const hosts = new Set([...this.topSites.map((s) => hostOf(s.url)), ...this.settings.pinned.map((s) => hostOf(s.url))]);
+            const icons = [...this.icons].filter(([host, url]) => hosts.has(host) && url.length < 30_000).slice(0, 60);
+            const sites = this.topSites.map(({ url, title }) => ({ url, title }));
+            localStorage.setItem(SITES_CACHE_KEY, JSON.stringify({ sites, icons }));
+        } catch {
+            // Only a speed-up.
+        }
+    }
+
+    private async loadSources() {
+        const limit = this.wantedSites();
+        this.fetchedLimit = limit;
+        const icons = new Map(this.icons);
         try {
             // Same list Firefox shows on its own new tab page, including sites pinned there.
-            const sites = await firefoxTopSites().get({ newtab: true, includeFavicon: true, limit: 30 });
+            const sites = await firefoxTopSites().get({ newtab: true, includeFavicon: true, limit });
             this.topSites = sites.filter((s) => (s.type ?? "url") === "url" && /^https?:/i.test(s.url));
             for (const site of this.topSites) {
                 const icon = usableIcon(site.favicon);
@@ -138,9 +167,46 @@ export class Shortcuts {
             }
         } catch (err) {
             console.warn("[tabdrift] top sites unavailable:", err);
-            this.topSites = [];
         }
         this.icons = icons;
+        this.render();
+        this.saveCache();
+        await this.addTabIcons();
+    }
+
+    /**
+     * Open tabs know the icons of sites that aren't top sites, like a shortcut you pinned. That query
+     * is slow with many tabs open, so it runs after the tiles are up and only when an icon is missing.
+     */
+    private async addTabIcons() {
+        const missing = new Set<string>();
+        for (const tile of this.tiles()) {
+            const host = hostOf(tile.url);
+            if (host && !this.icons.has(host)) {
+                missing.add(host);
+            }
+        }
+        if (missing.size === 0) {
+            return;
+        }
+        try {
+            const tabs = await browser.tabs.query({});
+            let added = false;
+            for (const tab of tabs) {
+                const icon = usableIcon(tab.favIconUrl);
+                const host = tab.url ? hostOf(tab.url) : "";
+                if (icon && missing.has(host) && !this.icons.has(host)) {
+                    this.icons.set(host, icon);
+                    added = true;
+                }
+            }
+            if (added) {
+                this.render();
+                this.saveCache();
+            }
+        } catch (err) {
+            console.warn("[tabdrift] tab icons unavailable:", err);
+        }
     }
 
     /** The last slot always holds the Add button, so a shortcut can be added even when top sites fill the rest. */
@@ -225,10 +291,6 @@ export class Shortcuts {
         return h("li", { class: "tile add" }, btn);
     }
 
-    /* ------------------------------------------------------------------ */
-    /* Reordering pinned tiles                                             */
-    /* ------------------------------------------------------------------ */
-
     private makeDraggable(item: HTMLElement, link: HTMLElement, id: string) {
         link.addEventListener("dragstart", (e) => {
             this.dragId = id;
@@ -275,10 +337,6 @@ export class Shortcuts {
             }
         });
     }
-
-    /* ------------------------------------------------------------------ */
-    /* Tile menu                                                           */
-    /* ------------------------------------------------------------------ */
 
     private buildMenu(): HTMLElement {
         const menu = h("div", { class: "menu glass", attrs: { role: "menu", hidden: true } });
@@ -346,10 +404,6 @@ export class Shortcuts {
         }
         this.anchor = null;
     }
-
-    /* ------------------------------------------------------------------ */
-    /* Add / edit dialog                                                   */
-    /* ------------------------------------------------------------------ */
 
     private buildDialog(): HTMLDialogElement {
         const titleInput = h("input", {
@@ -429,5 +483,6 @@ export class Shortcuts {
         this.settings = next;
         this.render();
         this.save(next);
+        void this.addTabIcons();
     }
 }

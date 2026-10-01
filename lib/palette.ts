@@ -99,7 +99,12 @@ export interface PaletteController {
 // Empty tabs, where opening a result should replace the tab like the address bar does.
 const BLANK_PAGES = ["about:newtab", "about:home", "about:blank", "about:privatebrowsing"];
 
-export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}): PaletteController {
+export interface PaletteHooks {
+    /** Called when the overlay opens or closes over the page. */
+    onOpenChange?: (open: boolean) => void;
+}
+
+export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hooks: PaletteHooks = {}): PaletteController {
     const inPopup = mode === "popup";
     const onNewTab = mode === "newtab";
     /** In a blank tab, Enter loads the result right here instead of opening yet another tab. */
@@ -290,6 +295,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}): Pal
             refocusTimes = [];
             setPageInert(true);
             addGuards();
+            hooks.onOpenChange?.(true);
         }
 
         if (host) {
@@ -331,6 +337,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}): Pal
         overlayActive = false;
         removeGuards();
         setPageInert(false);
+        hooks.onOpenChange?.(false);
         // Hand focus back to whatever had it before, e.g. the chat box.
         const returnTo = previouslyFocused;
         previouslyFocused = null;
