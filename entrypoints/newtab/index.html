@@ -2,14 +2,46 @@
 <html lang="en">
     <head>
         <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
         <meta name="color-scheme" content="dark" />
         <title>New Tab</title>
-        <style>
-            html {
-                background: #04060f;
-            }
-        </style>
-        <script type="module" src="./main.ts"></script>
+        <link
+            rel="preload"
+            href="/fonts/BertiogaSans-Light.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        <link
+            rel="preload"
+            href="/fonts/BertiogaSans-Regular.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        <link
+            rel="preload"
+            href="/fonts/BertiogaSans-Medium.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        <link
+            rel="preload"
+            href="/fonts/BertiogaSans-SemiBold.woff2"
+            as="font"
+            type="font/woff2"
+            crossorigin
+        />
+        <link rel="stylesheet" href="./style.css" />
     </head>
-    <body></body>
+    <body>
+        <div id="backdrop" aria-hidden="true"></div>
+        <div id="page">
+            <div id="topbar"></div>
+            <main id="center"></main>
+            <div id="widgets"></div>
+        </div>
+        <script type="module" src="./main.ts"></script>
+    </body>
 </html>

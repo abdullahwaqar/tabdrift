@@ -4,28 +4,28 @@
     src: url("/fonts/BertiogaSans-Light.woff2") format("woff2");
     font-weight: 300;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
 }
 @font-face {
     font-family: "Bertioga Sans";
     src: url("/fonts/BertiogaSans-Regular.woff2") format("woff2");
     font-weight: 400;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
 }
 @font-face {
     font-family: "Bertioga Sans";
     src: url("/fonts/BertiogaSans-Medium.woff2") format("woff2");
     font-weight: 500;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
 }
 @font-face {
     font-family: "Bertioga Sans";
     src: url("/fonts/BertiogaSans-SemiBold.woff2") format("woff2");
     font-weight: 600;
     font-style: normal;
-    font-display: swap;
+    font-display: block;
 }
 
 :root {
@@ -40,7 +40,9 @@
     --line: rgba(255, 255, 255, 0.12);
     --line-soft: rgba(255, 255, 255, 0.07);
     --danger: #f87171;
-    --sans: "Bertioga Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --sans:
+        "Bertioga Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        Helvetica, Arial, sans-serif;
     --radius-l: 20px;
     --radius-m: 14px;
     --radius-s: 9px;
@@ -108,10 +110,6 @@ button {
     border: 1px solid var(--line);
 }
 
-/* ------------------------------------------------------------------ */
-/* Backdrop                                                            */
-/* ------------------------------------------------------------------ */
-
 #backdrop {
     position: fixed;
     inset: 0;
@@ -123,7 +121,12 @@ button {
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 0.7s ease;
+    transition: opacity 0.3s ease;
+}
+
+/* A still stand-in for the gradient, drawn at once while the shader starts. */
+#backdrop .backdrop-fallback {
+    transition: none;
 }
 
 #backdrop .backdrop-layer.visible {
@@ -135,7 +138,12 @@ button {
     content: "";
     position: absolute;
     inset: 0;
-    background: radial-gradient(90% 75% at 50% 42%, rgba(0, 0, 0, 0.3), rgba(0, 0, 0, 0.1) 70%, rgba(0, 0, 0, 0.04));
+    background: radial-gradient(
+        90% 75% at 50% 42%,
+        rgba(0, 0, 0, 0.3),
+        rgba(0, 0, 0, 0.1) 70%,
+        rgba(0, 0, 0, 0.04)
+    );
     pointer-events: none;
 }
 
@@ -154,22 +162,12 @@ button {
     background: rgba(0, 0, 0, var(--dim, 0));
 }
 
-/* ------------------------------------------------------------------ */
-/* Page layout                                                         */
-/* ------------------------------------------------------------------ */
-
 #page {
     position: relative;
     z-index: 1;
     min-height: 100vh;
     display: grid;
     grid-template-rows: auto 1fr auto;
-    opacity: 0;
-    transition: opacity 0.35s ease;
-}
-
-body.ready #page {
-    opacity: 1;
 }
 
 #topbar {
@@ -194,10 +192,6 @@ body.ready #page {
     gap: 20px;
     padding: 0 28px 28px;
 }
-
-/* ------------------------------------------------------------------ */
-/* Clock, date and weather                                             */
-/* ------------------------------------------------------------------ */
 
 .clock {
     text-shadow: 0 2px 40px rgba(0, 0, 0, 0.25);
@@ -293,10 +287,6 @@ body.ready #page {
     font-variant-numeric: tabular-nums;
 }
 
-/* ------------------------------------------------------------------ */
-/* Search                                                              */
-/* ------------------------------------------------------------------ */
-
 .search {
     display: flex;
     align-items: center;
@@ -372,10 +362,6 @@ body.ready #page {
     font-size: 11px;
     color: var(--text-faint);
 }
-
-/* ------------------------------------------------------------------ */
-/* Shortcuts                                                           */
-/* ------------------------------------------------------------------ */
 
 .shortcuts {
     position: relative;
@@ -587,10 +573,6 @@ body.ready #page {
 .menu button.danger {
     color: var(--danger);
 }
-
-/* ------------------------------------------------------------------ */
-/* Panels: to do and focus timer                                       */
-/* ------------------------------------------------------------------ */
 
 .panel {
     width: 320px;
@@ -884,10 +866,6 @@ body.ready #page {
     background: #34d399;
 }
 
-/* ------------------------------------------------------------------ */
-/* Shared bits                                                         */
-/* ------------------------------------------------------------------ */
-
 .icon-btn {
     display: inline-flex;
     align-items: center;
@@ -1020,10 +998,6 @@ body.ready #page {
     gap: 8px;
 }
 
-/* ------------------------------------------------------------------ */
-/* Dialog                                                              */
-/* ------------------------------------------------------------------ */
-
 .dialog {
     width: min(380px, calc(100vw - 32px));
     padding: 22px;
@@ -1087,10 +1061,6 @@ body.ready #page {
     justify-content: flex-end;
     gap: 8px;
 }
-
-/* ------------------------------------------------------------------ */
-/* Customize drawer                                                    */
-/* ------------------------------------------------------------------ */
 
 .drawer {
     position: fixed;
@@ -1342,7 +1312,11 @@ input[type="range"]::-moz-range-thumb {
 input[type="range"]::-webkit-slider-runnable-track {
     height: 4px;
     border-radius: 999px;
-    background: linear-gradient(to right, var(--accent) var(--fill), rgba(255, 255, 255, 0.14) var(--fill));
+    background: linear-gradient(
+        to right,
+        var(--accent) var(--fill),
+        rgba(255, 255, 255, 0.14) var(--fill)
+    );
 }
 
 input[type="range"]::-webkit-slider-thumb {
@@ -1516,10 +1490,6 @@ input[type="range"]::-webkit-slider-thumb {
     font-size: 12px;
     color: var(--text-faint);
 }
-
-/* ------------------------------------------------------------------ */
-/* Small screens and reduced motion                                    */
-/* ------------------------------------------------------------------ */
 
 @media (max-width: 760px) {
     #widgets {

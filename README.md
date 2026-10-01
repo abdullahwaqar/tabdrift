@@ -117,11 +117,11 @@ Paste an email address or a link into the overlay and a **Utilities**
 section shows up above your tabs. The top row is selected, so `Enter`
 copies it to the clipboard. Use the arrow keys to pick a different one.
 
-| You paste          | You get                                                                                              |
-| ------------------ | ---------------------------------------------------------------------------------------------------- |
-| An email           | Domain, root domain, open the website, cleaned address (`Name <a@b.com>` and `mailto:` are handled) |
-| A list of emails   | Unique domains, one per line, plus a cleaned email list                                              |
-| A link             | Link without tracking parameters, no query or hash, site link (no path), domain, root domain, Markdown link, open the clean link, open in the Wayback Machine |
+| You paste        | You get                                                                                                                                                       |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| An email         | Domain, root domain, open the website, cleaned address (`Name <a@b.com>` and `mailto:` are handled)                                                           |
+| A list of emails | Unique domains, one per line, plus a cleaned email list                                                                                                       |
+| A link           | Link without tracking parameters, no query or hash, site link (no path), domain, root domain, Markdown link, open the clean link, open in the Wayback Machine |
 
 Link cleaning removes `utm_*`, `fbclid`, `gclid`, `msclkid`, `mc_eid`, and
 similar click ids, unwraps redirect links (Google `/url?q=`, Outlook
@@ -160,10 +160,6 @@ Ctrl+T opens Tabdrift's own page instead of Firefox Home. It has:
 
 Everything is set from **Customize** at the top right of the page. The
 gradient holds still if your system asks for reduced motion.
-
-Firefox puts the cursor in the address bar on every new tab, and
-extensions can't change that. Click the page, press `/` or use the
-Tabdrift shortcut to search from the page instead.
 
 To go back to Firefox Home, pick it under Settings, Home, New tabs.
 
@@ -220,10 +216,7 @@ npm version patch   # or minor / major
   settings page
 - `lib/`, shared settings storage, the clipboard helper, and the pure
   email and link helpers in `utils.ts`
-- `entrypoints/newtab/`, a tiny launcher Firefox opens on Ctrl+T. It opens
-  `entrypoints/home/` (the new tab page itself) as an ordinary tab and closes
-  itself, which is what lets the page keep the cursor
-- `entrypoints/home/` and `lib/newtab/`, the new tab page and its widgets
+- `entrypoints/newtab/` and `lib/newtab/`, the new tab page and its widgets
 - `public/icons/`, extension icons
 - `public/fonts/`, Bertioga Sans (Latin subset) and its license
 - `site/`, the standalone marketing page (deployable as-is to Netlify

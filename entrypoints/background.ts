@@ -16,12 +16,6 @@ export default defineBackground(() => {
     syncAllPopups();
     void scheduleTimerAlarm();
 
-    browser.history.onVisited.addListener((item) => {
-        if (item.url && isOwnNewTab(item.url)) {
-            void browser.history.deleteUrl({ url: item.url }).catch(() => {});
-        }
-    });
-
     browser.storage.onChanged.addListener((changes, area) => {
         if (area === "local" && changes[TIMER_KEY]) {
             void scheduleTimerAlarm();
@@ -241,7 +235,7 @@ const RESTRICTED_HOSTS = new Set([
 ]);
 
 const POPUP_PAGE = "/palette.html";
-const NEWTAB_PAGE = "/home.html";
+const NEWTAB_PAGE = "/newtab.html";
 
 /** Tabdrift's own new tab page. It runs the palette itself, so it needs neither the popup nor injection. */
 function isOwnNewTab(url: string | undefined): boolean {
