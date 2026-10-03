@@ -23,6 +23,9 @@ import { COMMAND_NAME, getSettings, onSettingsChanged } from "../../lib/settings
 
 const SAVE_DELAY_MS = 300;
 
+/** How long the search box keeps a blinking caret with no mouse or keyboard activity. */
+const CARET_IDLE_MS = 8000;
+
 function main() {
     const backdropEl = document.getElementById("backdrop") as HTMLDivElement;
     const topbar = document.getElementById("topbar") as HTMLDivElement;
@@ -246,6 +249,37 @@ function main() {
     render();
     if (settings.search.show) {
         searchInput.focus();
+    }
+
+    // A focused text box blinks its caret, and every blink is a repaint and a composite, forever.
+    // After a short idle spell the box lets go of focus. Nothing is lost: typing on the page still
+    // opens the palette (see the keydown handler below), and clicking the box hands off as before.
+    let caretTimer: ReturnType<typeof setTimeout> | null = null;
+    const releaseCaretSoon = () => {
+        if (caretTimer) {
+            clearTimeout(caretTimer);
+        }
+        caretTimer = setTimeout(() => {
+            caretTimer = null;
+            if (document.activeElement === searchInput && !searchInput.value) {
+                searchInput.blur();
+            }
+        }, CARET_IDLE_MS);
+    };
+    searchInput.addEventListener("focus", releaseCaretSoon);
+    for (const type of ["pointermove", "pointerdown", "keydown", "wheel"]) {
+        window.addEventListener(
+            type,
+            () => {
+                if (document.activeElement === searchInput) {
+                    releaseCaretSoon();
+                }
+            },
+            { passive: true, capture: true },
+        );
+    }
+    if (document.activeElement === searchInput) {
+        releaseCaretSoon();
     }
     console.debug(`[tabdrift] new tab drawn ${Math.round(performance.now())} ms after load`);
 

@@ -152,17 +152,22 @@ export class Backdrop {
         const generation = ++this.generation;
         this.current = bg;
         this.root.dataset.mode = bg.mode;
+        // Read by the stylesheet: glass blur is dropped over a plain color, where it can't change a pixel.
+        document.documentElement.dataset.bg = bg.mode;
 
         if (bg.mode === "solid") {
             this.root.style.backgroundColor = bg.solid;
             this.show();
-            this.pauseShader();
+            this.releaseShader();
+            this.standInEl.style.background = "";
+            this.imageEl.style.backgroundImage = "";
             return;
         }
 
         if (bg.mode === "image") {
             this.root.style.backgroundColor = "#101014";
-            this.pauseShader();
+            this.releaseShader();
+            this.standInEl.style.background = "";
             this.imageEl.style.setProperty("--dim", String(bg.imageDim));
             this.imageEl.style.setProperty("--blur", `${bg.imageBlur}px`);
             const url = await this.imageFor(bg.imageVersion);
@@ -175,6 +180,7 @@ export class Backdrop {
         }
 
         this.root.style.backgroundColor = bg.gradient.colorBack;
+        this.imageEl.style.backgroundImage = "";
         this.standInEl.style.background = standInGradient(bg.gradient);
         const shaderShown = this.shaderEl.classList.contains("visible");
         if (!shaderShown) {
@@ -199,8 +205,22 @@ export class Backdrop {
         }
     }
 
-    private pauseShader() {
+    /**
+     * Tears the WebGL gradient down completely when it isn't the background. A paused shader still
+     * holds a GL context, a full-screen canvas the compositor keeps around, and its observers.
+     * Switching back to the gradient builds a new one.
+     */
+    private releaseShader() {
         this.syncAnimation();
+        if (!this.mount) {
+            return;
+        }
+        const canvas = this.shaderEl.querySelector("canvas");
+        this.mount.dispose();
+        this.mount = null;
+        // dispose() frees the program and textures but leaves the context alive until GC.
+        canvas?.getContext("webgl2")?.getExtension("WEBGL_lose_context")?.loseContext();
+        canvas?.remove();
     }
 
     /** Freezes the gradient while something covers the page, and lets it move again after. */

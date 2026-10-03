@@ -30,6 +30,8 @@
 
 :root {
     color-scheme: dark;
+    /* The frosted look of the glass panels. */
+    --glass-blur: blur(22px) saturate(150%);
     --accent: #3b82f6;
     --text: #f6f5f3;
     --text-dim: rgba(246, 245, 243, 0.68);
@@ -47,6 +49,10 @@
     --radius-m: 14px;
     --radius-s: 9px;
     --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+:root[data-bg="solid"] {
+    --glass-blur: none;
 }
 
 *,
@@ -106,7 +112,7 @@ button {
 
 .glass {
     background: var(--glass);
-    backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--line);
 }
 
@@ -121,7 +127,11 @@ button {
     position: absolute;
     inset: 0;
     opacity: 0;
-    transition: opacity 0.3s ease;
+    /* Once faded out, a hidden layer leaves rendering entirely instead of sitting there at opacity 0. */
+    visibility: hidden;
+    transition:
+        opacity 0.3s ease,
+        visibility 0s linear 0.3s;
 }
 
 /* A still stand-in for the gradient, drawn at once while the shader starts. */
@@ -131,6 +141,9 @@ button {
 
 #backdrop .backdrop-layer.visible {
     opacity: 1;
+    visibility: visible;
+    /* Show at once; only hiding waits for the fade to finish. */
+    transition-delay: 0s;
 }
 
 /* A soft shade behind the middle of the page, so white text stays readable on the lightest parts of a gradient. */
@@ -408,7 +421,7 @@ button {
     height: 58px;
     border-radius: 17px;
     background: var(--glass);
-    backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--line);
     overflow: hidden;
     transition:
@@ -909,7 +922,7 @@ button {
     height: 40px;
     border-radius: 12px;
     background: var(--glass);
-    backdrop-filter: blur(22px) saturate(150%);
+    backdrop-filter: var(--glass-blur);
     border: 1px solid var(--line);
     color: var(--text);
 }
