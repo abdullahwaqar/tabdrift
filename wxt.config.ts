@@ -21,6 +21,12 @@ export default defineConfig({
                 },
                 description: "Copy this page's link without tracking parameters",
             },
+            "toggle-mark": {
+                suggested_key: {
+                    default: "Alt+Shift+B",
+                },
+                description: "Mark or unmark this page in Tabdrift",
+            },
         },
         icons: {
             16: "/icons/icon-16.png",

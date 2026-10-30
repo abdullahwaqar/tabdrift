@@ -10,12 +10,105 @@ few letters, jump straight to the tab you meant.
 Tabdrift opens a floating search overlay over whatever page you're on.
 It filters your open tabs by title or URL as you type, across every
 window, and switches to the one you pick with the arrow keys and enter.
-Matching is fuzzy (via Fuse.js), so typos and out-of-order words still
-find the right tab.
+Matching works like fzf and Telescope: letters can be spread out
+(`rbook` finds `doc.rust-lang.org/book`), words can come in any order, and
+the matched letters are highlighted.
 
-If nothing in your open tabs matches, Tabdrift also searches your
-browsing history in the background and lists close matches underneath,
-marked "history". Pick one and it opens in a new tab. This needs the
+It knows about site names, subdomains included. `search google`,
+`google search` and `search.google` all find `search.google.com`, `gcal`
+finds `calendar.google.com`, `gh` finds GitHub, and typing a whole part of
+an address (`calendar`, `mail google`) ranks that site above pages that only
+mention the words. Scattered matches that hit random letters in the middle
+of words ("rust" in "Pull requests") are left out.
+
+### Search syntax
+
+| Type        | Finds                                                    |
+| ----------- | -------------------------------------------------------- |
+| `rust book` | both words, in any order, in the title or address        |
+| `'exact`    | that exact text                                          |
+| `^git`      | titles or addresses that start with it                   |
+| `.pdf$`     | titles or addresses that end with it                     |
+| `!jira`     | leaves out anything containing it                        |
+| `Rust`      | a capital letter makes that word match case exactly      |
+
+### Scopes
+
+Narrow the search to one kind of thing, like Telescope's pickers. The keys
+are the ones Firefox's own address bar uses: type the symbol and a space at
+the start.
+
+| Key | Scope     | Before you type                     |
+| --- | --------- | ----------------------------------- |
+| `%` | Tabs      | all your tabs, most recent first    |
+| `*` | Marks     | your marks, most used first         |
+| `^` | History   | the sites you visited most recently |
+| `>` | Commands  | everything you can do (see below)   |
+
+**Tab** and **Shift+Tab** cycle through the scopes, and **Backspace** in an
+empty box goes back to searching everything. The scope bar under the search
+box is clickable too.
+
+### Marks
+
+Marks are Tabdrift's own bookmarks. They're kept by the extension, separate
+from Firefox's bookmarks, and need no extra permission.
+
+- **Ctrl+B** on any row (a tab, a history page or site, an address you
+  typed) marks it. Press it again to unmark. The overlay stays open.
+- **Alt+Shift+B** on any page marks or unmarks that page without opening the
+  overlay. The toolbar button flashes a star. Change the key under Manage
+  Extension Shortcuts in `about:addons`.
+- `*` lists your marks, the ones you open most often and most recently first.
+  **Ctrl+D** on a mark removes it.
+- In the combined list, matching marks get a boost, and when a mark matches
+  better than any open tab, the marks come first. Open tabs that are marked
+  show a star.
+- Opening a mark that's already open switches to its tab.
+- Marks live in this Firefox profile only. **Export** and **Import** in
+  settings save them to a JSON file and load them back.
+
+### Tab actions and commands
+
+**Right arrow** on a tab lists what you can do with it: pin, mute, reload
+(Shift+Enter skips the cache), duplicate, move to a new window, unload it to
+free memory, mark it, copy its clean link, Markdown link or title, close
+every tab from that site, mark it, or close it.
+
+The `>` scope has the same actions for the tab you're on, plus window-wide
+ones: close duplicate tabs, close other tabs, close tabs to the right or
+left, sort the window's tabs by site, merge all windows into this one,
+unload every inactive tab, mute every other tab, and copy all the window's
+links as a list or as Markdown. Anything that closes several tabs asks for a
+second Enter.
+
+Tabs that are playing sound, muted or unloaded say so, and with more than one
+window open each tab shows which window it's in.
+
+### More keys
+
+- **Ctrl+J / Ctrl+K** move down and up, like Telescope. **Page Up / Page
+  Down** jump eight rows.
+- **Ctrl+Y** copies the highlighted row's link and keeps the overlay open.
+- **Right arrow** on a mark shows its copy options (clean link, domain,
+  Markdown...).
+- **Ctrl+B** marks or unmarks the highlighted row.
+
+### Width and preview
+
+The overlay is wider than it used to be. Pick Compact (the old 640px card),
+Wide (880px, the default) or Full (most of the window) in settings. Wide and
+Full show a preview pane beside the results with the full address, when you
+last used a tab or visited a page, how often, which window, how often you've
+opened a mark, the tabs a clean-up row is about to close, and so on. Turn it
+off in settings if you'd rather have the list alone. It hides itself in windows
+narrower than about 960px.
+
+Tabdrift also searches your browsing history in the background and lists
+close matches underneath, marked "history". Firefox's own history search only
+finds exact words, so its results are merged with your 2,000 most recent
+pages and ranked with the same fuzzy matcher, favouring pages you visit
+often and recently. Pick one and it opens in a new tab. This needs the
 `history` permission; searches never leave your machine.
 
 ### History by site
@@ -214,8 +307,9 @@ npm version patch   # or minor / major
 
 - `entrypoints/`, background script, the injected overlay, and the
   settings page
-- `lib/`, shared settings storage, the clipboard helper, and the pure
-  email and link helpers in `utils.ts`
+- `lib/`, shared settings storage, the clipboard helper, the pure
+  email and link helpers in `utils.ts`, and the fzf-style matcher in
+  `match.ts` (used by both the overlay and the background script)
 - `entrypoints/newtab/` and `lib/newtab/`, the new tab page and its widgets
 - `public/icons/`, extension icons
 - `public/fonts/`, Bertioga Sans (Latin subset) and its license

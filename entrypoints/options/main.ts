@@ -1,6 +1,7 @@
+import { exportMarks, getMarks, importMarks, onMarksChanged } from "../../lib/marks";
 import type { SearchEngineId } from "../../lib/search";
 import { SEARCH_ENGINES } from "../../lib/search";
-import type { OverlayPosition, TabSearchSettings } from "../../lib/settings";
+import type { OverlayPosition, OverlayWidth, TabSearchSettings } from "../../lib/settings";
 import { DEFAULT_SETTINGS, eventToShortcut, getSettings, saveSettings } from "../../lib/settings";
 
 const shortcutInput = document.getElementById("shortcut-input") as HTMLButtonElement;
@@ -13,6 +14,13 @@ const listOnOpenInput = document.getElementById("list-on-open") as HTMLInputElem
 const groupHistoryInput = document.getElementById("group-history") as HTMLInputElement;
 const keepOpenInput = document.getElementById("keep-open") as HTMLInputElement;
 const enginePicker = document.getElementById("engine-picker") as HTMLDivElement;
+const widthPicker = document.getElementById("width-picker") as HTMLDivElement;
+const showPreviewInput = document.getElementById("show-preview") as HTMLInputElement;
+const exportMarksBtn = document.getElementById("export-marks") as HTMLButtonElement;
+const importMarksBtn = document.getElementById("import-marks") as HTMLButtonElement;
+const importFile = document.getElementById("import-file") as HTMLInputElement;
+const marksCount = document.getElementById("marks-count") as HTMLSpanElement;
+const markShortcutText = document.getElementById("mark-shortcut-text") as HTMLSpanElement;
 const cleanShortcut = document.getElementById("clean-shortcut") as HTMLDivElement;
 const saveBtn = document.getElementById("save") as HTMLButtonElement;
 const status = document.getElementById("status") as HTMLDivElement;
@@ -24,6 +32,13 @@ let recording = false;
 let currentShortcut = DEFAULT_SETTINGS.shortcut;
 let currentPosition: OverlayPosition = DEFAULT_SETTINGS.position;
 let currentEngine: SearchEngineId = DEFAULT_SETTINGS.searchEngine;
+let currentWidth: OverlayWidth = DEFAULT_SETTINGS.width;
+
+const WIDTHS: { id: OverlayWidth; label: string }[] = [
+    { id: "compact", label: "Compact" },
+    { id: "wide", label: "Wide" },
+    { id: "full", label: "Full" },
+];
 
 init();
 
@@ -43,11 +58,18 @@ async function init() {
     keepOpenInput.checked = settings.keepOpenOnOpen;
     renderEnginePicker();
     setEngine(settings.searchEngine);
+    renderWidthPicker();
+    setWidth(settings.width);
+    showPreviewInput.checked = settings.showPreview;
+    await showMarksCount();
+    onMarksChanged(() => void showMarksCount());
 
     // Show whatever key the clean-link command is bound to right now.
     const commands = await browser.commands.getAll();
     const cleanCommand = commands.find((c) => c.name === "copy-clean-url");
     renderKeycaps(cleanShortcut, cleanCommand?.shortcut || "Not set");
+    const markCommand = commands.find((c) => c.name === "toggle-mark");
+    markShortcutText.textContent = markCommand?.shortcut || "a shortcut you set in about:addons";
 }
 
 function renderKeycaps(target: HTMLElement, shortcut: string) {
@@ -112,6 +134,77 @@ enginePicker.addEventListener("keydown", (e) => {
     if (next) {
         setEngine(next.id);
         enginePicker.querySelector<HTMLButtonElement>(`[data-engine="${next.id}"]`)?.focus();
+    }
+});
+
+function renderWidthPicker() {
+    widthPicker.innerHTML = "";
+    for (const w of WIDTHS) {
+        const btn = document.createElement("button");
+        btn.type = "button";
+        btn.setAttribute("role", "radio");
+        btn.dataset.width = w.id;
+        btn.textContent = w.label;
+        btn.addEventListener("click", () => setWidth(w.id));
+        widthPicker.appendChild(btn);
+    }
+}
+
+function setWidth(id: OverlayWidth) {
+    currentWidth = WIDTHS.some((w) => w.id === id) ? id : DEFAULT_SETTINGS.width;
+    miniBody.dataset.width = currentWidth;
+    for (const btn of widthPicker.querySelectorAll<HTMLButtonElement>("button")) {
+        const on = btn.dataset.width === currentWidth;
+        btn.setAttribute("aria-checked", String(on));
+        btn.tabIndex = on ? 0 : -1;
+    }
+}
+
+widthPicker.addEventListener("keydown", (e) => {
+    if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"].includes(e.key)) {
+        return;
+    }
+    e.preventDefault();
+    const at = WIDTHS.findIndex((w) => w.id === currentWidth);
+    const step = e.key === "ArrowLeft" || e.key === "ArrowUp" ? -1 : 1;
+    const next = WIDTHS[(at + step + WIDTHS.length) % WIDTHS.length];
+    if (next) {
+        setWidth(next.id);
+        widthPicker.querySelector<HTMLButtonElement>(`[data-width="${next.id}"]`)?.focus();
+    }
+});
+
+async function showMarksCount() {
+    const n = (await getMarks()).length;
+    marksCount.textContent = n === 0 ? "You have no marks yet." : `You have ${n} mark${n === 1 ? "" : "s"}.`;
+}
+
+function flashStatus(text: string) {
+    status.textContent = text;
+    setTimeout(() => (status.textContent = ""), 2400);
+}
+
+exportMarksBtn.addEventListener("click", async () => {
+    const blob = new Blob([await exportMarks()], { type: "application/json" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `tabdrift-marks-${new Date().toISOString().slice(0, 10)}.json`;
+    link.click();
+    setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+});
+
+importMarksBtn.addEventListener("click", () => importFile.click());
+importFile.addEventListener("change", async () => {
+    const file = importFile.files?.[0];
+    importFile.value = "";
+    if (!file) {
+        return;
+    }
+    try {
+        const added = await importMarks(await file.text());
+        flashStatus(added === 0 ? "Nothing new to import." : `Imported ${added} mark${added === 1 ? "" : "s"}.`);
+    } catch (err) {
+        flashStatus(err instanceof Error ? err.message : "Couldn't read that file.");
     }
 });
 
@@ -180,6 +273,8 @@ saveBtn.addEventListener("click", async () => {
         groupHistory: groupHistoryInput.checked,
         keepOpenOnOpen: keepOpenInput.checked,
         searchEngine: currentEngine,
+        width: currentWidth,
+        showPreview: showPreviewInput.checked,
     };
 
     await saveSettings(settings);

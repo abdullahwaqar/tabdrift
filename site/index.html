@@ -8,7 +8,7 @@
         </title>
         <meta
             name="description"
-            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, jump to pages you marked, reopen history, run tab commands or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
         />
         <meta name="robots" content="index, follow, max-image-preview:large" />
         <meta name="author" content="Abdullah Waqar" />
@@ -24,7 +24,7 @@
         />
         <meta
             property="og:description"
-            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, jump to pages you marked, reopen history, run tab commands or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
         />
         <meta property="og:url" content="https://abdullahwaqar.com/tabdrift" />
         <meta
@@ -48,7 +48,7 @@
         />
         <meta
             name="twitter:description"
-            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, reopen pages from history, or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
+            content="Tabdrift is a free, open source Firefox extension. One shortcut to switch tabs, jump to pages you marked, reopen history, run tab commands or search the web, plus a fast new tab page with shortcuts, a to-do list and a focus timer."
         />
         <meta
             name="twitter:image"
@@ -74,7 +74,7 @@
                         "applicationSubCategory": "Browser extension",
                         "operatingSystem": "Windows, macOS, Linux (Firefox)",
                         "browserRequirements": "Requires Firefox 109 or later",
-                        "description": "A free, open source, keyboard-first tab switcher for Firefox. Press a shortcut to jump to an open tab, reopen a page from history, search Google, Bing or DuckDuckGo, or open an address. Replaces the new tab page with a clock, search box, shortcuts, weather, a to-do list and a focus timer over an animated grain gradient. Paste an email or link to copy its domain or a tracker-free URL, and close tabs from the same box.",
+                        "description": "A free, open source, keyboard-first tab switcher for Firefox. Press a shortcut to jump to an open tab, a page you marked, or a page from history, search Google, Bing or DuckDuckGo, or open an address. Replaces the new tab page with a clock, search box, shortcuts, weather, a to-do list and a focus timer over an animated grain gradient. Paste an email or link to copy its domain or a tracker-free URL, and close tabs from the same box.",
                         "url": "https://abdullahwaqar.com/tabdrift",
                         "downloadUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
                         "installUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
@@ -85,13 +85,22 @@
                             "https://abdullahwaqar.com/tabdrift/assets/raw/04-history-by-site.png",
                             "https://abdullahwaqar.com/tabdrift/assets/raw/05-clean-links.png",
                             "https://abdullahwaqar.com/tabdrift/assets/raw/06-new-tab.png",
-                            "https://abdullahwaqar.com/tabdrift/assets/raw/07-close-tabs.png"
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/07-close-tabs.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/08-marks.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/09-commands.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/10-tab-actions.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/11-smart-search.png"
                         ],
                         "license": "https://github.com/abdullahwaqar/tabdrift/blob/main/LICENSE",
                         "isAccessibleForFree": true,
                         "codeRepository": "https://github.com/abdullahwaqar/tabdrift",
                         "featureList": [
-                            "Fuzzy search across open tabs in every window",
+                            "fzf-style fuzzy search across open tabs in every window, with matches highlighted",
+                            "Subdomain-aware ranking: search google finds search.google.com, gcal finds Google Calendar",
+                            "Marks: Tabdrift's own bookmarks, toggled with Ctrl+B or Alt+Shift+B",
+                            "Scopes for tabs, marks, history and commands, like Telescope pickers",
+                            "Tab and window commands: pin, mute, unload, sort by site, merge windows, copy all links",
+                            "Wide layout with a preview pane",
                             "History search grouped by site",
                             "Web search with Google, Bing or DuckDuckGo using a one-letter key",
                             "Open typed addresses like github.com or localhost:5173",
@@ -118,6 +127,14 @@
                         "@type": "FAQPage",
                         "@id": "https://abdullahwaqar.com/tabdrift#faq",
                         "mainEntity": [
+                            {
+                                "@type": "Question",
+                                "name": "Does Tabdrift use my Firefox bookmarks?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "No. Tabdrift has its own marks, kept inside the extension. Press Ctrl+B on any row in the overlay, or Alt+Shift+B on any page, to mark or unmark it, and type * to list them. It needs no bookmarks permission. Marks stay in your Firefox profile, and settings can export and import them as a JSON file."
+                                }
+                            },
                             {
                                 "@type": "Question",
                                 "name": "Is Tabdrift free?",
@@ -262,15 +279,25 @@
                 letter-spacing: -0.01em;
                 color: var(--text);
             }
+            .nav .wrap {
+                gap: 28px;
+            }
             .nav-links {
                 display: flex;
                 align-items: center;
-                gap: 20px;
+                gap: 18px;
                 font-size: 13px;
             }
             .nav-links a {
                 color: var(--text-dim);
                 text-decoration: none;
+                white-space: nowrap;
+            }
+            /* Not enough room for every section link: keep Screenshots and the button. */
+            @media (max-width: 1080px) {
+                .nav-links a:not(.nav-cta):not(:first-child) {
+                    display: none;
+                }
             }
             .nav-links a:hover {
                 color: var(--text);
@@ -369,7 +396,7 @@
             .demo-page {
                 position: relative;
                 padding: 22px;
-                min-height: 320px;
+                min-height: 372px;
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
@@ -395,8 +422,8 @@
                 left: 50%;
                 top: 50%;
                 transform: translate(-50%, -50%);
-                width: 88%;
-                max-width: 400px;
+                width: 92%;
+                max-width: 460px;
                 border-radius: 12px;
                 background: rgba(30, 32, 37, 0.92);
                 border: 1px solid var(--border-strong);
@@ -448,8 +475,55 @@
                 color: var(--text-faint);
             }
             .demo-results {
-                max-height: 220px;
+                height: 222px;
                 overflow-y: auto;
+            }
+            .demo-scopes {
+                display: flex;
+                align-items: center;
+                gap: 2px;
+                padding: 5px 10px;
+                border-bottom: 1px solid var(--border);
+                overflow-x: auto;
+                scrollbar-width: none;
+            }
+            .demo-scope {
+                display: inline-flex;
+                align-items: center;
+                gap: 5px;
+                padding: 3px 8px;
+                border: none;
+                border-radius: 999px;
+                background: none;
+                font: inherit;
+                font-size: 11px;
+                color: var(--text-faint);
+                cursor: pointer;
+                white-space: nowrap;
+            }
+            .demo-scope:hover {
+                color: var(--text);
+            }
+            .demo-scope.on {
+                color: #fff;
+                background: rgba(var(--accent-rgb), 0.32);
+            }
+            .demo-scope kbd {
+                font-family: var(--mono);
+                font-size: 9.5px;
+                padding: 1px 4px;
+                border-radius: 3px;
+                background: rgba(255, 255, 255, 0.08);
+                color: inherit;
+            }
+            .demo-row mark {
+                background: none;
+                color: color-mix(in srgb, var(--accent) 60%, #fff);
+                font-weight: 700;
+            }
+            .demo-badge.star {
+                background: rgba(250, 204, 21, 0.14);
+                color: #fcd34d;
             }
             .demo-row {
                 display: flex;
@@ -1331,6 +1405,7 @@
                 <div class="nav-links">
                     <a href="#screenshots">Screenshots</a>
                     <a href="#how">How it works</a>
+                    <a href="#marks">Marks</a>
                     <a href="#search">Web search</a>
                     <a href="#new-tab">New tab</a>
                     <a href="#history">History</a>
@@ -1364,9 +1439,11 @@
                         Tabdrift is a free Firefox extension that opens a
                         floating search over whatever page you're on. Press the
                         shortcut, type a few letters, hit enter, you're on the
-                        right tab. Not open? It finds the page in your history.
-                        Not in history either? Enter searches Google, Bing or
-                        DuckDuckGo. Paste an email or a link and it hands you
+                        right tab. Not open? It finds the page in your marks or
+                        your history, and knows that "search google" means
+                        search.google.com. Nothing there? Enter searches
+                        Google, Bing or DuckDuckGo. Type &gt; for commands
+                        like pin, mute, unload or merge windows. Paste an email or a link and it hands you
                         the domain or a tracker-free URL. And Ctrl+T lands on a
                         new tab page with the cursor already in its search box.
                     </p>
@@ -1421,12 +1498,16 @@
                                     <input
                                         id="demo-input"
                                         type="text"
-                                        placeholder="Search tabs or the web, or paste a link..."
+                                        placeholder="Search tabs, marks, history or the web..."
                                         aria-label="Try the Tabdrift search box"
                                         autocomplete="off"
                                         spellcheck="false"
                                     />
                                 </div>
+                                <div
+                                    id="demo-scopes"
+                                    class="demo-scopes"
+                                ></div>
                                 <div
                                     id="demo-results"
                                     class="demo-results"
@@ -1457,8 +1538,21 @@
                         >
                             a messy link
                         </button>
-                        <button class="demo-chip" type="button" data-value="fi">
-                            a tab search
+                        <button class="demo-chip" type="button" data-value="dply lgs">
+                            a fuzzy search
+                        </button>
+                        <button
+                            class="demo-chip"
+                            type="button"
+                            data-value="search google"
+                        >
+                            a subdomain
+                        </button>
+                        <button class="demo-chip" type="button" data-value="* ">
+                            your marks
+                        </button>
+                        <button class="demo-chip" type="button" data-value="> ">
+                            commands
                         </button>
                         <button
                             class="demo-chip"
@@ -1507,7 +1601,7 @@
                             sizes="(max-width: 980px) calc(100vw - 48px), 932px"
                             width="1280"
                             height="800"
-                            alt="Tabdrift listing open tabs, most recent first, with a row to close a duplicate tab"
+                            alt="Tabdrift listing open tabs from two windows, most recent first, with a row to close a duplicate tab and a preview of the highlighted tab"
                             loading="eager"
                             decoding="async"
                         />
@@ -1532,13 +1626,13 @@
                             sizes="(max-width: 980px) calc(100vw - 48px), 932px"
                             width="1280"
                             height="800"
-                            alt="Typing plane.so in Tabdrift shows a matching tab, an address row, a web search row and a history result"
+                            alt="Typing rust hashmap in Tabdrift shows a matching mark, an open Stack Overflow tab, a web search row and a history result, with the matched letters highlighted"
                             loading="lazy"
                             decoding="async"
                         />
                         <figcaption>
-                            Tabs, web search and history in one list as you
-                            type.
+                            Marks, tabs, web search and history in one list,
+                            with the matched letters lit up.
                         </figcaption>
                     </figure>
                     <figure
@@ -1632,13 +1726,13 @@
                             sizes="(max-width: 980px) calc(100vw - 48px), 932px"
                             width="1280"
                             height="800"
-                            alt="Tabdrift open as a toolbar popup on the Firefox new tab page, searching DuckDuckGo"
+                            alt="Tabdrift's own new tab page with the search open, searching DuckDuckGo for rust hashmap"
                             loading="lazy"
                             decoding="async"
                         />
                         <figcaption>
-                            On the new tab page, Tabdrift opens from the
-                            toolbar.
+                            Ctrl+T, type, Enter. The new tab page opens the same
+                            search.
                         </figcaption>
                     </figure>
                     <figure
@@ -1664,6 +1758,102 @@
                         <figcaption>
                             Ctrl+D closes the highlighted tab. Duplicates close
                             in one Enter.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-8"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-8"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/tabdrift/assets/web/11-smart-search-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/tabdrift/assets/web/11-smart-search-960.webp   960w,
+                                https://abdullahwaqar.com/tabdrift/assets/web/11-smart-search-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Tabdrift ranking a marked Search Console page first for the query search google, above an open Google search tab"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Site names count both ways. search google finds search.google.com.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-9"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-9"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/tabdrift/assets/web/08-marks-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/tabdrift/assets/web/08-marks-960.webp   960w,
+                                https://abdullahwaqar.com/tabdrift/assets/web/08-marks-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Tabdrift's marks list, most used first, with a preview of the highlighted mark"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Ctrl+B marks any row. Type * to list your marks.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-10"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-10"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/tabdrift/assets/web/09-commands-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/tabdrift/assets/web/09-commands-960.webp   960w,
+                                https://abdullahwaqar.com/tabdrift/assets/web/09-commands-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="Tabdrift's command list for the current tab and window"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Type &gt; to pin, mute, unload, sort or merge windows.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-11"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-11"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/tabdrift/assets/web/10-tab-actions-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/tabdrift/assets/web/10-tab-actions-960.webp   960w,
+                                https://abdullahwaqar.com/tabdrift/assets/web/10-tab-actions-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="The action list for one tab: switch, pin, mute, reload, duplicate, move, unload, mark, copy, close"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Right arrow on a tab lists what you can do with it.
                         </figcaption>
                     </figure>
                 </div>
@@ -1738,6 +1928,46 @@
                     >
                         Close tabs
                     </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-8"
+                        aria-controls="shot-8"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Smart search
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-9"
+                        aria-controls="shot-9"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Marks
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-10"
+                        aria-controls="shot-10"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Commands
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-11"
+                        aria-controls="shot-11"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Tab actions
+                    </button>
                 </div>
             </section>
 
@@ -1767,10 +1997,12 @@
                         <div>
                             <h3>Type to filter</h3>
                             <p>
-                                Matches against tab titles and URLs as you type,
-                                across every window, not just the current one.
-                                Matching is fuzzy, so a typo or two still finds
-                                the right tab.
+                                Matches tab titles and addresses as you type,
+                                across every window, and lights up the letters
+                                it matched. Works like fzf: words in any order,
+                                letters can skip ahead, and site names count both
+                                ways, so "google search" and "gcal" land where
+                                you meant.
                             </p>
                         </div>
                     </div>
@@ -1798,6 +2030,89 @@
                         </div>
                     </div>
                 </div>
+            </section>
+
+            <section class="block" id="marks">
+                <div class="block-head">
+                    <h2>Marks, scopes and commands</h2>
+                    <p>
+                        Keep the pages you come back to, narrow the search to
+                        one kind of thing, and run tab chores from the same
+                        box. All from the keyboard.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>Mark what matters</h3>
+                        <p>
+                            Marks are Tabdrift's own bookmarks, separate from
+                            Firefox's and with no extra permission. Mark any row
+                            in the box, or the page you're on without opening
+                            it. Marks you open often rank higher, and a marked
+                            page that's already open switches to its tab.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Ctrl</span>+<span
+                                    class="keycap"
+                                    >B</span
+                                >
+                                <span>mark or unmark a row</span>
+                            </div>
+                            <div>
+                                <span class="keycap">Alt</span>+<span
+                                    class="keycap"
+                                    >Shift</span
+                                >+<span class="keycap">B</span>
+                                <span>mark the page you're on</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Search one kind of thing</h3>
+                        <p>
+                            Start with a symbol and a space to search only
+                            tabs, marks, history or commands, like Telescope's
+                            pickers. They're the same keys Firefox's address bar
+                            uses. Tab cycles through them.
+                        </p>
+                        <div class="code-block">
+                            <span class="keep">%</span> tabs &nbsp;
+                            <span class="keep">*</span> marks<br />
+                            <span class="keep">^</span> history &nbsp;
+                            <span class="keep">&gt;</span> commands<br />
+                            <span class="dim">'exact ^starts ends$ !skip</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Commands and tab actions</h3>
+                        <p>
+                            Type &gt; for pin, mute, reload, unload inactive
+                            tabs, sort a window by site, merge windows or copy
+                            every link as Markdown. Right arrow on any tab gives
+                            the same actions for that tab.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">&gt;</span>
+                                <span>commands for this tab and window</span>
+                            </div>
+                            <div>
+                                <span class="keycap">&rarr;</span>
+                                <span>actions for the highlighted tab</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    The box is wider now, with a preview pane beside the
+                    results: the full address, when you last used a tab or
+                    visited a page, which window it's in, and the tabs a clean
+                    up row is about to close. Pick Compact, Wide or Full in
+                    settings, or turn the preview off. Marks live in your
+                    Firefox profile, so settings can export them to a file and
+                    import them back.
+                </p>
             </section>
 
             <section class="block" id="search">
@@ -2426,6 +2741,17 @@
                 </div>
                 <div class="faq">
                     <details>
+                        <summary>Does Tabdrift use my Firefox bookmarks?</summary>
+                        <p>
+                            No. Tabdrift has its own marks, kept inside the
+                            extension. Press Ctrl+B on any row in the box, or
+                            Alt+Shift+B on any page, to mark or unmark it, and
+                            type * to list them. It needs no bookmarks
+                            permission. Marks stay in your Firefox profile, and
+                            settings can export and import them as a JSON file.
+                        </p>
+                    </details>
+                    <details>
                         <summary>Is Tabdrift free?</summary>
                         <p>
                             Yes. Tabdrift is free and open source under the MIT
@@ -2601,7 +2927,52 @@
                         title: "Deploy logs - Netlify",
                         url: "app.netlify.com/deploys",
                     },
+                    {
+                        title: "esp32 deep sleep - Google Search",
+                        url: "google.com/search?q=esp32+deep+sleep",
+                    },
                     { title: "npm install wxt", url: "npmjs.com/package/wxt" },
+                ];
+                // Marks: Tabdrift's own bookmarks. Ctrl+B in the demo adds and removes them too.
+                var MARKS = [
+                    {
+                        title: "Search Console - Performance",
+                        url: "search.google.com/search-console/performance",
+                    },
+                    {
+                        title: "Google Calendar",
+                        url: "calendar.google.com/calendar/r",
+                    },
+                    {
+                        title: "Clearline Books - Dashboard",
+                        url: "app.clearlinebooks.net/dashboard",
+                    },
+                    {
+                        title: "Find work | Upwork",
+                        url: "upwork.com/nx/find-work",
+                    },
+                    {
+                        title: "Hetzner Cloud Console",
+                        url: "console.hetzner.cloud/projects",
+                    },
+                ];
+                var COMMANDS = [
+                    { title: "Pin this tab", sub: "Keeps it at the left edge", keys: "pin" },
+                    { title: "Mute this tab", sub: "Silences it, even if it starts playing later", keys: "sound audio" },
+                    { title: "Mark this page", sub: "Keeps it under * in Tabdrift", keys: "bookmark star save" },
+                    { title: "Unload all inactive tabs", sub: "Frees memory. Tabs playing sound are left alone", keys: "discard memory sleep" },
+                    { title: "Sort tabs in this window by site", sub: "Groups tabs from the same site together", keys: "order group" },
+                    { title: "Merge all 3 windows into this one", sub: "Moves every tab here", keys: "combine gather" },
+                    { title: "Close tabs to the right", sub: "Pinned tabs stay. Press Enter twice", keys: "close" },
+                    { title: "Copy all links in this window as Markdown", sub: "A Markdown list of titles and links", keys: "export md yank" },
+                    { title: "Move this tab to a new window", sub: "Pops it out on its own", keys: "detach" },
+                ];
+                var SCOPES = [
+                    { id: "all", label: "All", key: "" },
+                    { id: "tabs", label: "Tabs", key: "%" },
+                    { id: "marks", label: "Marks", key: "*" },
+                    { id: "history", label: "History", key: "^" },
+                    { id: "commands", label: "Commands", key: ">" },
                 ];
                 var SWATCH_COLORS = [
                     "#3b82f6",
@@ -2656,6 +3027,11 @@
                 const results = document.getElementById("demo-results");
                 const hint = document.getElementById("demo-hint");
                 let filtered = [];
+                let filteredMarks = [];
+                let filteredCommands = [];
+                let scope = "all";
+                let armed = null;
+                const hits = new Map();
                 let filteredHistory = [];
                 let expandedHost = null;
                 let detail = null;
@@ -2976,7 +3352,9 @@
                     }
                     const address = parseAddress(q);
                     const nothingElse =
-                        filtered.length === 0 && utils.length === 0;
+                        filtered.length === 0 &&
+                        utils.length === 0 &&
+                        filteredMarks.length === 0;
                     if (address) {
                         const go = {
                             type: "go",
@@ -2998,8 +3376,146 @@
                 const GLOBE_ICON =
                     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/></svg>';
 
+                const ARROW_ICON =
+                    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg>';
                 const COPY_ICON =
                     '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15V6a2 2 0 0 1 2-2h9"/></svg>';
+
+                // A pocket version of the extension's matcher: every word must match the title,
+                // the address, or the site's name read either way ("search google" finds search.google.com).
+                const isBoundary = (text, i) =>
+                    i === 0 || /[\s/.\-_:?=&#|]/.test(text[i - 1]);
+                const siteWords = (url) =>
+                    url
+                        .split("/")[0]
+                        .split(".")
+                        .slice(0, -1)
+                        .filter((l) => l !== "www" && l !== "com" && l !== "co")
+                        .reverse()
+                        .join(" ");
+                const findWord = (word, text) => {
+                    const lower = text.toLowerCase();
+                    const at = lower.indexOf(word);
+                    if (at !== -1) {
+                        // Prefer a hit at the start of a word.
+                        let best = at;
+                        for (let i = at; i !== -1; i = lower.indexOf(word, i + 1)) {
+                            if (isBoundary(lower, i)) {
+                                best = i;
+                                break;
+                            }
+                        }
+                        const pos = [];
+                        for (let k = 0; k < word.length; k++) {
+                            pos.push(best + k);
+                        }
+                        return { score: word.length + (isBoundary(lower, best) ? 2 : 0), pos: pos };
+                    }
+                    // Letters in order, each new run starting a word ("dply" for "Deploy", "lgs" for "logs").
+                    // Tries every word start as the first letter, so "lgs" skips the l in "Deploy".
+                    for (let start = lower.indexOf(word[0]); start !== -1; start = lower.indexOf(word[0], start + 1)) {
+                        if (!isBoundary(lower, start)) {
+                            continue;
+                        }
+                        const pos = [start];
+                        let from = start + 1;
+                        let midWord = 0;
+                        for (let k = 1; k < word.length && pos.length === k; k++) {
+                            const i = lower.indexOf(word[k], from);
+                            if (i === -1) {
+                                break;
+                            }
+                            if (i !== pos[k - 1] + 1 && !isBoundary(lower, i)) {
+                                midWord++;
+                            }
+                            pos.push(i);
+                            from = i + 1;
+                        }
+                        if (pos.length === word.length && midWord <= Math.floor(word.length / 2)) {
+                            return { score: word.length * 0.6, pos: pos };
+                        }
+                    }
+                    return null;
+                };
+                const match = (query, item) => {
+                    const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+                    const sub = item.url || item.sub || "";
+                    const site = item.url ? siteWords(item.url) : item.keys || "";
+                    const labels = item.url ? item.url.split("/")[0].split(".") : [];
+                    let score = 0;
+                    let onSite = 0;
+                    const t = [];
+                    const u = [];
+                    for (const w of words) {
+                        const a = findWord(w, item.title);
+                        const b = findWord(w, sub);
+                        const c = site ? findWord(w, site) : null;
+                        if (!a && !b && !c) {
+                            return null;
+                        }
+                        const best = [a, b && { score: b.score * 0.9, pos: b.pos }, c && { score: c.score * 0.85 }]
+                            .filter(Boolean)
+                            .sort((x, y) => y.score - x.score)[0];
+                        score += best.score;
+                        if (best === a) {
+                            t.push(...a.pos);
+                        } else if (b && best.pos === b.pos) {
+                            u.push(...b.pos);
+                        }
+                        if (labels.includes(w)) {
+                            score += 3;
+                            onSite++;
+                        } else if (labels.some((l) => l.startsWith(w))) {
+                            score += 1;
+                            onSite++;
+                        }
+                    }
+                    if (words.length > 1 && onSite === words.length) {
+                        score += 3;
+                    }
+                    return { score: score, t: t, u: u };
+                };
+                const rankAll = (query, list, boost) =>
+                    list
+                        .map((item) => ({ item: item, m: match(query, item) }))
+                        .filter((r) => r.m)
+                        .sort((x, y) => y.m.score + (boost || 0) - (x.m.score + (boost || 0)))
+                        .map((r) => {
+                            hits.set(r.item, r.m);
+                            return r.item;
+                        });
+                const isMarked = (url) => MARKS.some((m) => m.url === url);
+                const marksLead = () =>
+                    filteredMarks.length > 0 &&
+                    (filtered.length === 0 ||
+                        hits.get(filteredMarks[0]).score + 1.5 > hits.get(filtered[0]).score);
+                const highlight = (el, text, pos) => {
+                    el.textContent = "";
+                    const set = new Set(pos || []);
+                    let run = "";
+                    let on = false;
+                    const flush = () => {
+                        if (!run) {
+                            return;
+                        }
+                        if (on) {
+                            const m = document.createElement("mark");
+                            m.textContent = run;
+                            el.appendChild(m);
+                        } else {
+                            el.appendChild(document.createTextNode(run));
+                        }
+                        run = "";
+                    };
+                    for (let i = 0; i < text.length; i++) {
+                        if (set.has(i) !== on) {
+                            flush();
+                            on = set.has(i);
+                        }
+                        run += text[i];
+                    }
+                    flush();
+                };
 
                 const groupHistory = (items) => {
                     const groups = [];
@@ -3022,21 +3538,45 @@
                             data: data,
                         }));
                     }
+                    const markRows = filteredMarks.map((data) => ({
+                        kind: "mark",
+                        data: data,
+                    }));
+                    const tabRows = filtered.map((data) => ({
+                        kind: "tab",
+                        data: data,
+                    }));
+                    if (scope === "tabs") {
+                        return tabRows;
+                    }
+                    if (scope === "marks") {
+                        return markRows;
+                    }
+                    if (scope === "commands") {
+                        return filteredCommands.map((data) => ({
+                            kind: "cmd",
+                            data: data,
+                        }));
+                    }
                     const webRows = web.map((data) => ({
                         kind: "web",
                         data: data,
                     }));
-                    const rows = (webFirst ? webRows : [])
-                        .concat(
-                            utils.map((data) => ({ kind: "util", data: data })),
-                        )
-                        .concat(
-                            filtered.map((data) => ({
-                                kind: "tab",
-                                data: data,
-                            })),
-                        )
-                        .concat(webFirst ? [] : webRows);
+                    const lead = marksLead();
+                    const rows =
+                        scope === "history"
+                            ? []
+                            : (webFirst ? webRows : [])
+                                  .concat(
+                                      utils.map((data) => ({
+                                          kind: "util",
+                                          data: data,
+                                      })),
+                                  )
+                                  .concat(lead ? markRows : [])
+                                  .concat(tabRows)
+                                  .concat(lead ? [] : markRows)
+                                  .concat(webFirst ? [] : webRows);
                     filteredHistory.forEach((group) => {
                         rows.push({ kind: "site", data: group });
                         if (group.host === expandedHost) {
@@ -3085,6 +3625,19 @@
                                       `${flipLabel}Enter keep open`,
                                       "\u2192 pages",
                                   ];
+                    } else if (row && row.kind === "tab") {
+                        parts = [
+                            "\u2191\u2193 navigate",
+                            "Enter switch",
+                            isMarked(row.data.url) ? "Ctrl+B unmark" : "Ctrl+B mark",
+                        ];
+                    } else if (row && row.kind === "mark") {
+                        parts = ["\u2191\u2193 navigate", "Enter open", "Ctrl+B unmark"];
+                    } else if (row && row.kind === "cmd") {
+                        parts = [
+                            "\u2191\u2193 navigate",
+                            armed === row.data ? "Enter again to confirm" : "Enter run",
+                        ];
                     } else if (row && row.kind === "page") {
                         parts = [
                             "Enter open",
@@ -3144,6 +3697,20 @@
                     }
                     if (row.kind === "util") {
                         copyUtility(row.data);
+                        return;
+                    }
+                    if (row.kind === "mark") {
+                        flashHint(`Opens https://${shorten(row.data.url)}`);
+                        return;
+                    }
+                    if (row.kind === "cmd") {
+                        if (/^Close/.test(row.data.title) && armed !== row.data) {
+                            armed = row.data;
+                            updateHint();
+                            return;
+                        }
+                        armed = null;
+                        flashHint(`\u2713 ${row.data.title}`);
                         return;
                     }
                     if (row.kind === "web") {
@@ -3235,8 +3802,10 @@
                         const empty = document.createElement("div");
                         empty.className = "demo-empty";
                         empty.textContent = input.value.trim()
-                            ? "No matching tabs or history"
-                            : "Search tabs or the web. Add g, b or d to pick an engine";
+                            ? "No matching tabs, marks or history"
+                            : scope === "all"
+                              ? "Search tabs or the web. Add g, b or d to pick an engine"
+                              : "Type to filter";
                         results.appendChild(empty);
                         updateHint();
                         return;
@@ -3249,7 +3818,11 @@
                                 : row.kind;
                         if (section !== lastSection) {
                             let heading = null;
-                            if (section === "util") {
+                            if (section === "mark") {
+                                heading = "Marks";
+                            } else if (section === "cmd") {
+                                heading = "Commands";
+                            } else if (section === "util") {
                                 heading = detail
                                     ? `Utilities \u00b7 ${detail.host}`
                                     : "Utilities";
@@ -3258,8 +3831,10 @@
                             } else if (section === "web") {
                                 heading = "Web";
                             } else if (
+                                scope === "tabs" ||
                                 utils.length > 0 ||
-                                (webFirst && web.length > 0)
+                                (webFirst && web.length > 0) ||
+                                marksLead()
                             ) {
                                 heading = "Open tabs";
                             }
@@ -3354,6 +3929,27 @@
                             text.appendChild(hSub);
                             el.appendChild(text);
                             el.appendChild(badge);
+                        } else if (row.kind === "cmd") {
+                            const icon = document.createElement("span");
+                            icon.className = "util-icon";
+                            icon.innerHTML = ARROW_ICON;
+                            const text = document.createElement("div");
+                            text.className = "text";
+                            const cTitle = document.createElement("div");
+                            cTitle.className = "title";
+                            highlight(cTitle, row.data.title, hits.get(row.data)?.t);
+                            const cSub = document.createElement("div");
+                            cSub.className = "sub";
+                            cSub.textContent =
+                                armed === row.data ? "Press Enter again to confirm" : row.data.sub;
+                            text.appendChild(cTitle);
+                            text.appendChild(cSub);
+                            const cBadge = document.createElement("span");
+                            cBadge.className = "demo-badge";
+                            cBadge.textContent = "run";
+                            el.appendChild(icon);
+                            el.appendChild(text);
+                            el.appendChild(cBadge);
                         } else {
                             const favicon = document.createElement("div");
                             favicon.className = "favicon";
@@ -3366,10 +3962,24 @@
                                 .toUpperCase();
                             el.appendChild(favicon);
 
+                            const m = hits.get(row.data) || {};
+                            const text = document.createElement("div");
+                            text.className = "text";
                             const title = document.createElement("div");
                             title.className = "title";
-                            title.textContent = row.data.title;
-                            el.appendChild(title);
+                            highlight(title, row.data.title, m.t);
+                            const tSub = document.createElement("div");
+                            tSub.className = "sub";
+                            highlight(tSub, row.data.url, m.u);
+                            text.appendChild(title);
+                            text.appendChild(tSub);
+                            el.appendChild(text);
+                            if (row.kind === "mark" || isMarked(row.data.url)) {
+                                const star = document.createElement("span");
+                                star.className = "demo-badge star";
+                                star.textContent = "\u2605";
+                                el.appendChild(star);
+                            }
                         }
 
                         el.addEventListener("mouseenter", () => select(i));
@@ -3382,29 +3992,68 @@
                     updateHint();
                 };
 
+                const renderScopes = () => {
+                    scopesEl.querySelectorAll("button").forEach((b) => {
+                        b.classList.toggle("on", b.dataset.scope === scope);
+                    });
+                };
+                const scopesEl = document.getElementById("demo-scopes");
+                SCOPES.forEach((sc) => {
+                    const b = document.createElement("button");
+                    b.type = "button";
+                    b.className = "demo-scope";
+                    b.dataset.scope = sc.id;
+                    b.append(sc.label);
+                    if (sc.key) {
+                        const k = document.createElement("kbd");
+                        k.textContent = sc.key;
+                        b.append(k);
+                    }
+                    b.addEventListener("click", () => {
+                        scope = sc.id;
+                        renderScopes();
+                        filter(input.value);
+                        input.focus();
+                    });
+                    scopesEl.appendChild(b);
+                });
+
                 const filter = (query) => {
+                    // "* rust" switches to marks, like Firefox's address bar.
+                    const prefix = query.match(/^([%*^>])\s/);
+                    if (prefix) {
+                        scope = SCOPES.find((sc) => sc.key === prefix[1]).id;
+                        query = query.slice(2);
+                        input.value = query;
+                    }
+                    renderScopes();
                     const q = query.trim().toLowerCase();
                     if (!q) {
                         openedCount = 0;
                     }
-                    filtered = q
-                        ? TABS.filter(
-                              (t) =>
-                                  t.title.toLowerCase().indexOf(q) !== -1 ||
-                                  t.url.toLowerCase().indexOf(q) !== -1,
+                    hits.clear();
+                    armed = null;
+                    const showAll = !q && scope !== "all";
+                    filtered = q ? rankAll(q, TABS) : showAll ? TABS.slice() : [];
+                    // A marked page that's open shows up as its tab, with a star.
+                    filteredMarks = q
+                        ? rankAll(
+                              q,
+                              scope === "marks" ? MARKS : MARKS.filter((m) => !TABS.some((t) => t.url === m.url)),
                           )
-                        : [];
-                    filteredHistory = q
-                        ? groupHistory(
-                              HISTORY.filter(
-                                  (h) =>
-                                      h.title.toLowerCase().indexOf(q) !== -1 ||
-                                      h.url.toLowerCase().indexOf(q) !== -1,
-                              ),
-                          )
-                        : [];
-                    utils = q ? buildUtilities(query) : [];
-                    const plan = planWeb(query);
+                        : scope === "marks"
+                          ? MARKS.slice()
+                          : [];
+                    filteredCommands = q ? rankAll(q, COMMANDS) : COMMANDS.slice();
+                    const histMatches = q
+                        ? rankAll(q, HISTORY)
+                        : scope === "history"
+                          ? HISTORY.slice()
+                          : [];
+                    filteredHistory = scope === "all" || scope === "history" ? groupHistory(histMatches) : [];
+                    const plain = scope === "all";
+                    utils = q && plain ? buildUtilities(query) : [];
+                    const plan = plain ? planWeb(query) : { rows: [], first: false };
                     web = plan.rows;
                     webFirst = plan.first;
                     expandedHost = null;
@@ -3471,13 +4120,42 @@
                     } else if (e.key === "Escape" && detail) {
                         e.preventDefault();
                         closeDetail();
+                    } else if (
+                        e.key.toLowerCase() === "b" &&
+                        e.ctrlKey &&
+                        !e.shiftKey &&
+                        !e.altKey &&
+                        row &&
+                        (row.kind === "tab" || row.kind === "mark")
+                    ) {
+                        // Ctrl+B marks or unmarks the highlighted row.
+                        e.preventDefault();
+                        const at = MARKS.findIndex((m) => m.url === row.data.url);
+                        const keep = selectedIndex;
+                        if (at === -1) {
+                            MARKS.unshift({ title: row.data.title, url: row.data.url });
+                        } else {
+                            MARKS.splice(at, 1);
+                        }
+                        filter(input.value);
+                        select(Math.min(keep, allRows().length - 1));
+                        flashHint(
+                            at === -1
+                                ? `\u2605 Marked \u201c${shorten(row.data.title)}\u201d`
+                                : `Unmarked \u201c${shorten(row.data.title)}\u201d`,
+                        );
+                    } else if (e.key === "Backspace" && scope !== "all" && input.value === "") {
+                        e.preventDefault();
+                        scope = "all";
+                        filter("");
                     }
                 });
-                input.value = "fi";
+                input.value = "dply lgs";
                 filter(input.value);
 
                 document.querySelectorAll(".demo-chip").forEach((chip) => {
                     chip.addEventListener("click", () => {
+                        scope = "all";
                         input.value = chip.dataset.value;
                         filter(input.value);
                         input.focus();

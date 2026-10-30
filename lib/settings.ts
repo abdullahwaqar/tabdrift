@@ -2,6 +2,7 @@ import type { SearchEngineId } from "./search";
 import { DEFAULT_ENGINE_ID } from "./search";
 
 export type OverlayPosition = "top" | "center" | "bottom";
+export type OverlayWidth = "compact" | "wide" | "full";
 
 export interface TabSearchSettings {
     shortcut: string; // WebExtensions commands.update() format, e.g. "Alt+D"
@@ -20,6 +21,10 @@ export interface TabSearchSettings {
     keepOpenOnOpen: boolean;
     /** Engine used for plain searches. A one-letter key before or after the query picks another one. */
     searchEngine: SearchEngineId;
+    /** How wide the overlay is: 640px, 880px, or most of the window. */
+    width: OverlayWidth;
+    /** A details pane beside the results (full address, folder, last visit...). Only when the overlay is wide enough. */
+    showPreview: boolean;
 }
 
 export const COMMAND_NAME = "_execute_action";
@@ -33,6 +38,8 @@ export const DEFAULT_SETTINGS: TabSearchSettings = {
     groupHistory: true,
     keepOpenOnOpen: false,
     searchEngine: DEFAULT_ENGINE_ID,
+    width: "wide",
+    showPreview: true,
 };
 
 const STORAGE_KEY = "local:tabSearchSettings";

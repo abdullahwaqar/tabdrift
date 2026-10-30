@@ -216,6 +216,25 @@
                 background: var(--accent);
                 opacity: 0.85;
                 pointer-events: none;
+                transition: width 0.15s ease;
+            }
+            .mini-body[data-width="compact"] #mini-card {
+                width: 50%;
+            }
+            .mini-body[data-width="full"] #mini-card {
+                width: 90%;
+            }
+            .marks-control {
+                gap: 8px;
+            }
+            .row.flash {
+                animation: flash 1.6s ease;
+            }
+            @keyframes flash {
+                0%,
+                40% {
+                    background: color-mix(in srgb, var(--accent) 22%, transparent);
+                }
             }
 
             /* accent */
@@ -474,6 +493,47 @@
 
                 <div class="row">
                     <div class="row-copy">
+                        <span class="row-title" id="width-label"
+                            >Overlay width</span
+                        >
+                        <p class="row-hint">
+                            Compact is the original 640px card. Wide and Full
+                            leave room for longer titles and links, and for the
+                            preview pane.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div
+                            id="width-picker"
+                            class="segmented"
+                            role="radiogroup"
+                            aria-labelledby="width-label"
+                        ></div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <label class="row-title" for="show-preview"
+                            >Preview pane</label
+                        >
+                        <p class="row-hint">
+                            Shows details of the highlighted result beside the
+                            list: the full link, folder, last visit, which
+                            window a tab is in. Needs Wide or Full and a window
+                            wider than about 960px.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div class="switch">
+                            <input id="show-preview" type="checkbox" />
+                            <span class="track"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
                         <label class="row-title" for="accent-input"
                             >Accent color</label
                         >
@@ -548,6 +608,26 @@
                             <input id="group-history" type="checkbox" />
                             <span class="track"></span>
                         </div>
+                    </div>
+                </div>
+
+                <div class="row" id="marks">
+                    <div class="row-copy">
+                        <span class="row-title">Marks</span>
+                        <p class="row-hint">
+                            Tabdrift's own bookmarks, separate from Firefox's.
+                            Press <kbd>Ctrl+B</kbd> on any row in the overlay,
+                            or <span id="mark-shortcut-text">Alt+Shift+B</span>
+                            on any page, to mark or unmark it. Find them under
+                            <kbd>*</kbd>. They live in this Firefox profile
+                            only, so export them now and then.
+                            <span id="marks-count"></span>
+                        </p>
+                    </div>
+                    <div class="row-control marks-control">
+                        <button id="export-marks" class="secondary" type="button">Export</button>
+                        <button id="import-marks" class="secondary" type="button">Import</button>
+                        <input id="import-file" type="file" accept="application/json,.json" hidden />
                     </div>
                 </div>
 

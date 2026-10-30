@@ -1,5 +1,8 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { copyText } from "../lib/clipboard";
+import type { TabCommandId, TabCommandReply } from "../lib/commands";
+import { canMark, toggleMark } from "../lib/marks";
+import { displayUrl, historyBoost, hostOf, plainWords, rank } from "../lib/match";
 import { getNewTabSettings } from "../lib/newtab/settings";
 import type { TimerState } from "../lib/newtab/timer-state";
 import { readTimer, settle, TIMER_ALARM_PREFIX, TIMER_KEY, writeTimer } from "../lib/newtab/timer-state";
@@ -7,9 +10,13 @@ import { COMMAND_NAME, getSettings } from "../lib/settings";
 import { cleanUrl } from "../lib/utils";
 
 const COPY_CLEAN_URL_COMMAND = "copy-clean-url";
+const TOGGLE_MARK_COMMAND = "toggle-mark";
 const MENU_COPY_CLEAN_LINK = "tabdrift-copy-clean-link";
 const DEFAULT_HISTORY_RESULTS = 25;
 const MAX_HISTORY_RESULTS = 300;
+/** Recent pages kept around for fuzzy matching, since Firefox's own history search only finds exact words. */
+const RECENT_HISTORY_POOL = 2000;
+const RECENT_HISTORY_TTL_MS = 60_000;
 
 export default defineBackground(() => {
     applyStoredShortcut();
@@ -61,12 +68,17 @@ export default defineBackground(() => {
     });
 
     browser.commands.onCommand.addListener(async (name) => {
-        if (name !== COPY_CLEAN_URL_COMMAND) {
+        if (name !== COPY_CLEAN_URL_COMMAND && name !== TOGGLE_MARK_COMMAND) {
             return;
         }
         const [tab] = await browser.tabs.query({ active: true, currentWindow: true });
-        if (tab?.url) {
+        if (!tab?.url) {
+            return;
+        }
+        if (name === COPY_CLEAN_URL_COMMAND) {
             await copyCleanLink(tab.url, tab);
+        } else {
+            await toggleMarkFor(tab);
         }
     });
 
@@ -87,6 +99,11 @@ export default defineBackground(() => {
                             pinned: tab.pinned,
                             active: tab.active,
                             lastAccessed: tab.lastAccessed,
+                            windowId: tab.windowId,
+                            index: tab.index,
+                            audible: tab.audible,
+                            muted: tab.mutedInfo?.muted === true,
+                            discarded: tab.discarded,
                             // The tab the overlay is open in. It can't be closed from its own overlay.
                             current: tab.id === originTabId,
                         })),
@@ -141,23 +158,23 @@ export default defineBackground(() => {
             // Grouping by site needs a deeper pool, or one busy site fills every slot.
             const requested = Number.isInteger(message.maxResults) ? message.maxResults : DEFAULT_HISTORY_RESULTS;
             const maxResults = Math.max(1, Math.min(requested, MAX_HISTORY_RESULTS));
-            browser.history
-                .search({ text: query, maxResults, startTime: 0 })
-                .then((items) => {
-                    const results = items
-                        .filter((item) => !!item.url)
-                        .sort((a, b) => (b.lastVisitTime ?? 0) - (a.lastVisitTime ?? 0))
-                        .map((item) => ({
-                            id: item.id,
-                            title: item.title || item.url,
-                            url: item.url,
-                            lastVisitTime: item.lastVisitTime ?? 0,
-                        }));
-                    sendResponse(results);
-                })
+            searchHistory(query, maxResults)
+                .then(sendResponse)
                 .catch((err) => {
                     console.error("[tabdrift] history search failed:", err);
                     sendResponse([]);
+                });
+            return true;
+        }
+
+        if (message?.action === "tabCommand") {
+            const command = typeof message.command === "string" ? message.command : "";
+            const tabId = Number.isInteger(message.tabId) ? (message.tabId as number) : originTabId;
+            runTabCommand(command, tabId, originTabId)
+                .then(sendResponse)
+                .catch((err) => {
+                    console.error(`[tabdrift] ${command} failed:`, err);
+                    sendResponse({ success: false, message: "That didn't work on this tab" });
                 });
             return true;
         }
@@ -414,4 +431,210 @@ async function finishTimer(endsAt: number) {
         title: focusDone ? "Focus session done" : "Break's over",
         message: focusDone ? `Take a ${settings.timer.breakMinutes} minute break.` : `Ready for another ${settings.timer.focusMinutes} minutes?`,
     });
+}
+
+type HistoryItem = Browser.history.HistoryItem;
+
+let recentHistory: { at: number; items: HistoryItem[] } | null = null;
+
+async function recentPages(): Promise<HistoryItem[]> {
+    if (recentHistory && Date.now() - recentHistory.at < RECENT_HISTORY_TTL_MS) {
+        return recentHistory.items;
+    }
+    const items = await browser.history.search({ text: "", maxResults: RECENT_HISTORY_POOL, startTime: 0 });
+    recentHistory = { at: Date.now(), items };
+    return items;
+}
+
+function historyRow(item: HistoryItem) {
+    return {
+        id: item.id,
+        title: item.title || item.url,
+        url: item.url,
+        lastVisitTime: item.lastVisitTime ?? 0,
+        visitCount: item.visitCount ?? 0,
+    };
+}
+
+/**
+ * Firefox's history search only finds pages containing every word as typed,
+ * so "ghtd" finds nothing. Its results are merged with your recent pages and
+ * the lot is ranked with the same fuzzy matcher the overlay uses.
+ */
+async function searchHistory(query: string, maxResults: number) {
+    if (!query.trim()) {
+        const recent = await recentPages();
+        return recent
+            .filter((item) => !!item.url)
+            .slice(0, maxResults)
+            .map(historyRow);
+    }
+
+    const words = plainWords(query);
+    const [direct, recent] = await Promise.all([
+        words ? browser.history.search({ text: words, maxResults: MAX_HISTORY_RESULTS, startTime: 0 }) : Promise.resolve([]),
+        recentPages(),
+    ]);
+    const pool = new Map<string, HistoryItem>();
+    for (const item of [...direct, ...recent]) {
+        if (item.url && !pool.has(item.url)) {
+            pool.set(item.url, item);
+        }
+    }
+
+    const now = Date.now();
+    const ranked = rank(
+        [...pool.values()].map((item) => ({
+            item,
+            title: item.title || "",
+            sub: displayUrl(item.url),
+            host: hostOf(item.url),
+            boost: historyBoost(item.lastVisitTime, item.visitCount, now),
+        })),
+        query,
+        maxResults,
+    );
+    return ranked.map((r) => historyRow(r.item));
+}
+
+/** Alt+Shift+B: mark or unmark the page you're on without opening the overlay. */
+async function toggleMarkFor(tab: Browser.tabs.Tab) {
+    if (!canMark(tab.url)) {
+        flashBadge(tab.id, false);
+        return;
+    }
+    const marked = await toggleMark({ url: tab.url, title: tab.title, favIconUrl: tab.favIconUrl });
+    if (tab.id !== undefined) {
+        browser.action.setBadgeBackgroundColor({ color: marked ? "#ca8a04" : "#52525b", tabId: tab.id });
+        browser.action.setBadgeText({ text: marked ? "\u2605" : "\u2606", tabId: tab.id });
+        setTimeout(() => browser.action.setBadgeText({ text: "", tabId: tab.id }), 1500);
+        if (!isRestrictedUrl(tab.url)) {
+            await sendToTab(tab.id, { action: "showToast", text: marked ? "Marked. Find it under * in Tabdrift" : "Unmarked" });
+        }
+    }
+}
+
+function plural(n: number, word: string): string {
+    return `${n} ${word}${n === 1 ? "" : "s"}`;
+}
+
+/** Tabs closed in bulk never include pinned tabs or the tab the overlay is open in. */
+function closable(list: Browser.tabs.Tab[], keep: Set<number | undefined>): number[] {
+    return list.filter((t) => t.id !== undefined && !t.pinned && !keep.has(t.id)).map((t) => t.id as number);
+}
+
+async function closeIds(ids: number[], what: string): Promise<TabCommandReply> {
+    if (ids.length === 0) {
+        return { success: true, message: `No ${what} to close` };
+    }
+    await browser.tabs.remove(ids);
+    return { success: true, message: `✓ Closed ${plural(ids.length, "tab")}` };
+}
+
+async function runTabCommand(command: string, tabId: number | undefined, originTabId: number | undefined): Promise<TabCommandReply> {
+    if (tabId === undefined) {
+        return { success: false, message: "No tab to work on" };
+    }
+    const tab = await browser.tabs.get(tabId);
+    const id = tabId;
+
+    switch (command as TabCommandId) {
+        case "pin":
+            await browser.tabs.update(id, { pinned: !tab.pinned });
+            return { success: true, message: tab.pinned ? "✓ Unpinned" : "✓ Pinned" };
+
+        case "mute": {
+            const muted = tab.mutedInfo?.muted === true;
+            await browser.tabs.update(id, { muted: !muted });
+            return { success: true, message: muted ? "✓ Unmuted" : "✓ Muted" };
+        }
+
+        case "reload":
+            await browser.tabs.reload(id);
+            return { success: true };
+
+        case "hard-reload":
+            await browser.tabs.reload(id, { bypassCache: true });
+            return { success: true };
+
+        case "duplicate":
+            await browser.tabs.duplicate(id);
+            return { success: true };
+
+        case "new-window":
+            await browser.windows.create({ tabId: id });
+            return { success: true };
+
+        case "discard":
+            if (tab.active) {
+                return { success: false, message: "Can't unload the tab you're looking at" };
+            }
+            await browser.tabs.discard(id);
+            return { success: true, message: "✓ Unloaded. It reloads when you switch to it" };
+
+        case "close-site": {
+            const host = hostOf(tab.url);
+            if (!host) {
+                return { success: false, message: "Not a website" };
+            }
+            const all = await browser.tabs.query({});
+            const same = all.filter((t) => hostOf(t.url) === host);
+            return closeIds(closable(same, new Set([originTabId])), `${host} tabs`);
+        }
+
+        case "close-others": {
+            const inWindow = await browser.tabs.query({ windowId: tab.windowId });
+            return closeIds(closable(inWindow, new Set([id, originTabId])), "other tabs");
+        }
+
+        case "close-right":
+        case "close-left": {
+            const inWindow = await browser.tabs.query({ windowId: tab.windowId });
+            const side = inWindow.filter((t) => (command === "close-right" ? t.index > tab.index : t.index < tab.index));
+            return closeIds(closable(side, new Set([id, originTabId])), command === "close-right" ? "tabs to the right" : "tabs to the left");
+        }
+
+        case "sort-window": {
+            const inWindow = await browser.tabs.query({ windowId: tab.windowId });
+            const pinnedCount = inWindow.filter((t) => t.pinned).length;
+            const sorted = inWindow
+                .filter((t) => !t.pinned && t.id !== undefined)
+                .sort((a, b) => {
+                    const byHost = hostOf(a.url).localeCompare(hostOf(b.url));
+                    return byHost !== 0 ? byHost : (a.title ?? "").localeCompare(b.title ?? "");
+                });
+            await browser.tabs.move(
+                sorted.map((t) => t.id as number),
+                { index: pinnedCount },
+            );
+            return { success: true, message: `✓ Sorted ${plural(sorted.length, "tab")} by site` };
+        }
+
+        case "merge-windows": {
+            const all = await browser.tabs.query({});
+            const ids = all.filter((t) => t.windowId !== tab.windowId && !t.incognito === !tab.incognito && t.id !== undefined).map((t) => t.id as number);
+            if (ids.length === 0) {
+                return { success: true, message: "Only one window open" };
+            }
+            await browser.tabs.move(ids, { windowId: tab.windowId, index: -1 });
+            return { success: true, message: `✓ Moved ${plural(ids.length, "tab")} into this window` };
+        }
+
+        case "discard-inactive": {
+            const all = await browser.tabs.query({});
+            const ids = all.filter((t) => !t.active && !t.discarded && !t.audible && t.id !== undefined).map((t) => t.id as number);
+            await Promise.all(ids.map((tabId) => browser.tabs.discard(tabId).catch(() => {})));
+            return { success: true, message: ids.length > 0 ? `✓ Unloaded ${plural(ids.length, "tab")}` : "Nothing to unload" };
+        }
+
+        case "mute-others": {
+            const all = await browser.tabs.query({ audible: true });
+            const others = all.filter((t) => t.id !== id && t.id !== undefined);
+            await Promise.all(others.map((t) => browser.tabs.update(t.id as number, { muted: true })));
+            return { success: true, message: others.length > 0 ? `✓ Muted ${plural(others.length, "tab")}` : "No other tab is playing sound" };
+        }
+
+        default:
+            return { success: false, message: "Unknown command" };
+    }
 }
