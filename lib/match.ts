@@ -114,17 +114,93 @@ export function plainWords(query: string): string {
         .join(" ");
 }
 
+/**
+ * One searchable string, with everything that doesn't depend on the query
+ * worked out once: the lowercase copy, the part fuzzy scoring looks at, and
+ * a bitmask of which letters and digits it contains.
+ */
+interface Field {
+    /** The whole string, for exact, prefix and suffix words. */
+    raw: string;
+    low: string;
+    /** The first MAX_HAYSTACK characters, for fuzzy scoring. */
+    fz: string;
+    fzLow: string;
+    /** One bit per letter a-z, plus one for any digit. */
+    mask: number;
+}
+
+/** A candidate ready for fast repeated ranking. Build with prepare() and reuse across keystrokes. */
+export interface Prepared<T> {
+    item: T;
+    title: Field;
+    sub: Field;
+    extra: Field;
+    site: Field;
+    host: string;
+    labels: string[];
+    /** Every field's mask together: a word whose letters aren't all here can't match. */
+    mask: number;
+    boost: number;
+}
+
+const DIGIT_BIT = 1 << 26;
+
+function maskOf(low: string): number {
+    let mask = 0;
+    for (let i = 0; i < low.length; i++) {
+        const c = low.charCodeAt(i);
+        if (c >= 97 && c <= 122) {
+            mask |= 1 << (c - 97);
+        } else if (c >= 48 && c <= 57) {
+            mask |= DIGIT_BIT;
+        }
+    }
+    return mask;
+}
+
+const EMPTY_FIELD: Field = { raw: "", low: "", fz: "", fzLow: "", mask: 0 };
+
+function field(raw: string | undefined): Field {
+    if (!raw) {
+        return EMPTY_FIELD;
+    }
+    const low = raw.toLowerCase();
+    const fz = raw.length > MAX_HAYSTACK ? raw.slice(0, MAX_HAYSTACK) : raw;
+    const fzLow = fz === raw ? low : fz.toLowerCase();
+    return { raw, low, fz, fzLow, mask: maskOf(low) };
+}
+
+/** Does the slow, query-independent work for a candidate once, so each keystroke only scores. */
+export function prepare<T>(cand: Candidate<T>): Prepared<T> {
+    const host = cand.host ?? "";
+    const labels = siteLabels(host);
+    const title = field(cand.title);
+    const sub = field(cand.sub);
+    const extra = field(cand.extra);
+    // "google calendar" for calendar.google.com, so words can come in either order and "gcal" works.
+    const site = field(labels.join(" "));
+    return {
+        item: cand.item,
+        title,
+        sub,
+        extra,
+        site,
+        host,
+        labels,
+        mask: title.mask | sub.mask | extra.mask | site.mask,
+        boost: cand.boost ?? 0,
+    };
+}
+
+// Scratch space shared by every call, so scoring allocates nothing per candidate.
 let bufD = new Float64Array(0);
 let bufM = new Float64Array(0);
-let bufBonus = new Float64Array(0);
 
-function ensureBuffers(cells: number, m: number) {
+function ensureBuffers(cells: number) {
     if (bufD.length < cells) {
         bufD = new Float64Array(cells * 2);
         bufM = new Float64Array(cells * 2);
-    }
-    if (bufBonus.length < m) {
-        bufBonus = new Float64Array(m * 2);
     }
 }
 
@@ -151,6 +227,32 @@ function bonusFor(prev: string, cur: string): number {
     return 0;
 }
 
+/**
+ * bonusFor() for the character at `j`, worked out only where a match lands.
+ * Plain ASCII, by far the usual case, skips the string case conversions.
+ */
+function bonusAt(text: string, j: number): number {
+    if (j === 0) {
+        return SCORE_MATCH_SLASH;
+    }
+    const p = text.charCodeAt(j - 1);
+    const c = text.charCodeAt(j);
+    if (p < 128 && c < 128) {
+        if (p === 47) {
+            return SCORE_MATCH_SLASH;
+        }
+        // - _ space : ? = & #
+        if (p === 45 || p === 95 || p === 32 || p === 58 || p === 63 || p === 61 || p === 38 || p === 35) {
+            return SCORE_MATCH_WORD;
+        }
+        if (p === 46) {
+            return SCORE_MATCH_DOT;
+        }
+        return p >= 97 && p <= 122 && c >= 65 && c <= 90 ? SCORE_MATCH_CAPITAL : 0;
+    }
+    return bonusFor(text[j - 1] as string, text[j] as string);
+}
+
 /** Every needle character appears in order in the haystack. Cheap check before the full scoring. */
 function isSubsequence(needle: string, hay: string): boolean {
     let j = 0;
@@ -175,14 +277,17 @@ export interface FuzzyHit {
  * a separator (/, ., -, space) or at a camelCase hump score highest.
  */
 export function fuzzy(needle: string, haystack: string, caseSensitive = false, strict = true): FuzzyHit | null {
-    const original = haystack.length > MAX_HAYSTACK ? haystack.slice(0, MAX_HAYSTACK) : haystack;
-    const n = needle.length;
-    const m = original.length;
+    return fuzzyField(caseSensitive ? needle : needle.toLowerCase(), field(haystack), caseSensitive, strict);
+}
+
+/** fuzzy() on a prepared field. `nd` is already folded to match `caseSensitive`. */
+function fuzzyField(nd: string, f: Field, caseSensitive: boolean, strict: boolean): FuzzyHit | null {
+    const n = nd.length;
+    const m = f.fz.length;
     if (n === 0 || n > m) {
         return null;
     }
-    const nd = caseSensitive ? needle : needle.toLowerCase();
-    const hs = caseSensitive ? original : original.toLowerCase();
+    const hs = caseSensitive ? f.fz : f.fzLow;
     if (!isSubsequence(nd, hs)) {
         return null;
     }
@@ -191,49 +296,58 @@ export function fuzzy(needle: string, haystack: string, caseSensitive = false, s
         return { score: (n - 1) * SCORE_MATCH_CONSECUTIVE + SCORE_MATCH_SLASH + SCORE_EXACT_FIELD, positions: Array.from({ length: n }, (_, i) => i) };
     }
 
-    ensureBuffers(n * m, m);
+    // Only columns from the first possible start to the last possible end can be on a match.
+    let lo = 0;
+    let hi = m - 1;
+    if (hs.length === m) {
+        lo = hs.indexOf(nd[0] as string);
+        hi = hs.lastIndexOf(nd[n - 1] as string);
+    }
+    const w = hi - lo + 1;
+    ensureBuffers(n * w);
     const D = bufD;
     const M = bufM;
-    const bonus = bufBonus;
-
-    let prev = "/";
-    for (let j = 0; j < m; j++) {
-        const cur = original[j] as string;
-        bonus[j] = bonusFor(prev, cur);
-        prev = cur;
-    }
+    const NEG = Number.NEGATIVE_INFINITY;
 
     for (let i = 0; i < n; i++) {
-        let prevScore = Number.NEGATIVE_INFINITY;
+        let prevScore = NEG;
         const gap = i === n - 1 ? SCORE_GAP_TRAILING : SCORE_GAP_INNER;
-        const row = i * m;
-        const prow = (i - 1) * m;
+        const row = i * w;
+        const prow = row - w;
         const nc = nd[i];
-        for (let j = 0; j < m; j++) {
+        for (let k = 0; k < w; k++) {
+            const j = lo + k;
             if (nc === hs[j]) {
-                let score = Number.NEGATIVE_INFINITY;
+                let score = NEG;
                 if (i === 0) {
-                    score = j * SCORE_GAP_LEADING + (bonus[j] as number);
-                } else if (j > 0) {
-                    score = Math.max((M[prow + j - 1] as number) + (bonus[j] as number), (D[prow + j - 1] as number) + SCORE_MATCH_CONSECUTIVE);
+                    score = j * SCORE_GAP_LEADING + bonusAt(f.fz, j);
+                } else if (k > 0) {
+                    const a = (M[prow + k - 1] as number) + bonusAt(f.fz, j);
+                    const b = (D[prow + k - 1] as number) + SCORE_MATCH_CONSECUTIVE;
+                    score = a > b ? a : b;
                 }
-                D[row + j] = score;
-                prevScore = Math.max(score, prevScore + gap);
-                M[row + j] = prevScore;
+                D[row + k] = score;
+                const carried = prevScore + gap;
+                prevScore = score > carried ? score : carried;
+                M[row + k] = prevScore;
             } else {
-                D[row + j] = Number.NEGATIVE_INFINITY;
+                D[row + k] = NEG;
                 prevScore = prevScore + gap;
-                M[row + j] = prevScore;
+                M[row + k] = prevScore;
             }
         }
     }
 
-    const score = M[(n - 1) * m + m - 1] as number;
+    // Columns after `hi` hold no match, so the last row just keeps paying the trailing gap.
+    let score = M[(n - 1) * w + w - 1] as number;
+    for (let j = hi + 1; j < m; j++) {
+        score += SCORE_GAP_TRAILING;
+    }
     if (!Number.isFinite(score)) {
         return null;
     }
-    const positions = backtrack(D, M, n, m);
-    if (strict && tooScattered(positions, bonus, n)) {
+    const positions = backtrack(D, M, n, w, lo);
+    if (strict && tooScattered(positions, f.fz, n)) {
         return null;
     }
     return { score, positions };
@@ -244,7 +358,7 @@ export function fuzzy(needle: string, haystack: string, caseSensitive = false, s
  * A match that breaks into pieces is kept only if most pieces start a word:
  * "ghtd" for "GitHub ... tabdrift" stays, "rust" in "requests" goes.
  */
-function tooScattered(positions: number[], bonus: Float64Array, n: number): boolean {
+function tooScattered(positions: number[], text: string, n: number): boolean {
     let chunks = 0;
     let penalty = 0;
     for (let i = 0; i < positions.length; i++) {
@@ -253,7 +367,7 @@ function tooScattered(positions: number[], bonus: Float64Array, n: number): bool
             continue;
         }
         chunks++;
-        if (p > 0 && (bonus[p] as number) === 0) {
+        if (p > 0 && bonusAt(text, p) === 0) {
             // A lone letter in the middle of a word ("docs" in "doc.ru[s]t") is the weakest evidence of all.
             const lone = positions[i + 1] !== p + 1;
             penalty += lone ? 2 : 1;
@@ -262,20 +376,19 @@ function tooScattered(positions: number[], bonus: Float64Array, n: number): bool
     return chunks > 1 && penalty > Math.floor(n / 3);
 }
 
-/** Walks back through the score tables to find which characters made the best score. */
-function backtrack(D: Float64Array, M: Float64Array, n: number, m: number): number[] {
-    // Walk back through the table to find which characters made the best score.
+/** Walks back through the score tables (columns lo..lo+w-1) to find which characters made the best score. */
+function backtrack(D: Float64Array, M: Float64Array, n: number, w: number, lo: number): number[] {
     const positions = new Array<number>(n);
     let matchRequired = false;
-    let j = m - 1;
+    let k = w - 1;
     for (let i = n - 1; i >= 0; i--) {
-        const row = i * m;
-        for (; j >= 0; j--) {
-            const d = D[row + j] as number;
-            if (d !== Number.NEGATIVE_INFINITY && (matchRequired || d === M[row + j])) {
-                matchRequired = i > 0 && j > 0 && M[row + j] === (D[(i - 1) * m + j - 1] as number) + SCORE_MATCH_CONSECUTIVE;
-                positions[i] = j;
-                j--;
+        const row = i * w;
+        for (; k >= 0; k--) {
+            const d = D[row + k] as number;
+            if (d !== Number.NEGATIVE_INFINITY && (matchRequired || d === M[row + k])) {
+                matchRequired = i > 0 && k > 0 && M[row + k] === (D[row - w + k - 1] as number) + SCORE_MATCH_CONSECUTIVE;
+                positions[i] = lo + k;
+                k--;
                 break;
             }
         }
@@ -285,10 +398,6 @@ function backtrack(D: Float64Array, M: Float64Array, n: number, m: number): numb
 
 function range(start: number, length: number): number[] {
     return Array.from({ length }, (_, i) => start + i);
-}
-
-function fold(text: string, caseSensitive: boolean): string {
-    return caseSensitive ? text : text.toLowerCase();
 }
 
 /** Word-start bonus for a literal match at `at`. */
@@ -302,47 +411,86 @@ interface FieldHit {
     positions: number[];
 }
 
-function literalHit(term: Term, title: string, sub: string, extra = ""): FieldHit | null {
-    const needle = fold(term.text, term.caseSensitive);
+/** A query word with the per-query work done up front. */
+interface PreparedTerm extends Term {
+    /** The text folded the way the haystack will be (lowercase unless smart case kicked in). */
+    folded: string;
+    mask: number;
+    /** For the site-name boost: lowercase, without leading or trailing dots. */
+    hostNeedle: string;
+    hostParts: string[];
+}
+
+function prepareTerms(terms: Term[]): PreparedTerm[] {
+    return terms.map((t) => {
+        const lower = t.text.toLowerCase();
+        const hostNeedle = lower.replace(/^\.+|\.+$/g, "");
+        return {
+            ...t,
+            folded: t.caseSensitive ? t.text : lower,
+            mask: maskOf(lower),
+            hostNeedle,
+            hostParts: hostNeedle.includes(".") ? hostNeedle.split(".") : [],
+        };
+    });
+}
+
+function literalIn(term: PreparedTerm, f: Field): number {
+    const hay = term.caseSensitive ? f.raw : f.low;
+    const needle = term.folded;
+    if (term.kind === "exact") {
+        return hay.indexOf(needle);
+    }
+    if (term.kind === "prefix") {
+        return hay.startsWith(needle) ? 0 : -1;
+    }
+    if (term.kind === "suffix") {
+        return hay.endsWith(needle) ? hay.length - needle.length : -1;
+    }
+    return -1;
+}
+
+const LITERAL_FIELDS = [
+    ["title", TITLE_WEIGHT],
+    ["sub", SUB_WEIGHT],
+    ["extra", EXTRA_WEIGHT],
+] as const;
+
+function literalHit<T>(term: PreparedTerm, cand: Prepared<T>): FieldHit | null {
     let best: FieldHit | null = null;
-    for (const [field, raw, weight] of [
-        ["title", title, TITLE_WEIGHT],
-        ["sub", sub, SUB_WEIGHT],
-        ["extra", extra, EXTRA_WEIGHT],
-    ] as const) {
-        const hay = fold(raw, term.caseSensitive);
-        let at = -1;
-        if (term.kind === "exact") {
-            at = hay.indexOf(needle);
-        } else if (term.kind === "prefix") {
-            at = hay.startsWith(needle) ? 0 : -1;
-        } else if (term.kind === "suffix") {
-            at = hay.endsWith(needle) ? hay.length - needle.length : -1;
+    for (const [name, weight] of LITERAL_FIELDS) {
+        const f = cand[name];
+        if ((term.mask & f.mask) !== term.mask) {
+            continue;
         }
+        const at = literalIn(term, f);
         if (at === -1) {
             continue;
         }
-        const score = ((needle.length - 1) * SCORE_MATCH_CONSECUTIVE + startBonus(raw, at) + 1) * weight;
+        const score = ((term.folded.length - 1) * SCORE_MATCH_CONSECUTIVE + startBonus(f.raw, at) + 1) * weight;
         if (!best || score > best.score) {
-            best = { score, field, positions: range(at, needle.length) };
+            best = { score, field: name, positions: range(at, term.folded.length) };
         }
     }
     return best;
 }
 
-function fuzzyHit(term: Term, title: string, sub: string, extra = "", site = ""): FieldHit | null {
-    let best: FieldHit | null = null;
-    for (const [field, raw, weight, strict] of [
-        ["title", title, TITLE_WEIGHT, true],
-        ["sub", sub, SUB_WEIGHT, true],
-        ["extra", extra, EXTRA_WEIGHT, true],
-        // Site names are short and typed on purpose, so loose abbreviations are fine there ("gh", "gcal").
-        ["extra", site, SITE_WEIGHT, false],
-    ] as const) {
-        const hit = raw ? fuzzy(term.text, raw, term.caseSensitive, strict) : null;
-        if (hit && (!best || hit.score * weight > best.score)) {
-            best = { score: hit.score * weight, field, positions: hit.positions };
-        }
+function fuzzyHit<T>(term: PreparedTerm, cand: Prepared<T>): FieldHit | null {
+    let best = fieldHit(term, cand.title, "title", TITLE_WEIGHT, true, null);
+    best = fieldHit(term, cand.sub, "sub", SUB_WEIGHT, true, best);
+    best = fieldHit(term, cand.extra, "extra", EXTRA_WEIGHT, true, best);
+    // Site names are short and typed on purpose, so loose abbreviations are fine there ("gh", "gcal").
+    return fieldHit(term, cand.site, "extra", SITE_WEIGHT, false, best);
+}
+
+/** Scores one field and returns whichever of it and `best` is better. */
+function fieldHit(term: PreparedTerm, f: Field, name: FieldHit["field"], weight: number, strict: boolean, best: FieldHit | null): FieldHit | null {
+    if (!f.raw || (term.mask & f.mask) !== term.mask) {
+        return best;
+    }
+    const hit = fuzzyField(term.folded, f, term.caseSensitive, strict);
+    if (hit && (!best || hit.score * weight > best.score)) {
+        return { score: hit.score * weight, field: name, positions: hit.positions };
     }
     return best;
 }
@@ -363,11 +511,11 @@ export function siteLabels(host: string | undefined): string[] {
 }
 
 /** How strongly one word points at the site itself: a whole label beats the start of one. */
-function labelScore(term: Term, host: string, labels: string[]): number {
+function labelScore(term: PreparedTerm, host: string, labels: string[]): number {
     if (term.negate || term.kind === "suffix") {
         return 0;
     }
-    const needle = term.text.toLowerCase().replace(/^\.+|\.+$/g, "");
+    const needle = term.hostNeedle;
     if (!needle) {
         return 0;
     }
@@ -378,7 +526,7 @@ function labelScore(term: Term, host: string, labels: string[]): number {
         return HOST_PREFIX_BONUS;
     }
     // "search.google" typed as one word: every dotted part names a label.
-    if (needle.includes(".") && needle.split(".").every((part) => part && labels.some((l) => l.startsWith(part)))) {
+    if (term.hostParts.length > 0 && term.hostParts.every((part) => part && labels.some((l) => l.startsWith(part)))) {
         return HOST_PREFIX_BONUS;
     }
     if (labels.some((label) => label.startsWith(needle))) {
@@ -388,44 +536,45 @@ function labelScore(term: Term, host: string, labels: string[]): number {
     return needle.length > 1 && labels.some((label) => label[0] === needle[0] && isSubsequence(needle, label)) ? HOST_ABBREV_BONUS : 0;
 }
 
-function scoreCandidate<T>(cand: Candidate<T>, terms: Term[]): Ranked<T> | null {
-    const host = cand.host ?? "";
-    const labels = siteLabels(host);
-    // "google calendar" for calendar.google.com, so words can come in either order and "gcal" works.
-    const site = labels.join(" ");
+function scoreCandidate<T>(cand: Prepared<T>, terms: PreparedTerm[]): Ranked<T> | null {
+    const host = cand.host;
     let hostTerms = 0;
     let positive = 0;
     let total = 0;
-    const titlePos: number[] = [];
-    const subPos: number[] = [];
+    let titlePos: number[] | null = null;
+    let subPos: number[] | null = null;
     for (const term of terms) {
         if (term.negate) {
-            if (literalHit(term, cand.title, cand.sub, cand.extra)) {
+            if ((term.mask & cand.mask) === term.mask && literalHit(term, cand)) {
                 return null;
             }
             continue;
         }
-        const hit = term.kind === "fuzzy" ? fuzzyHit(term, cand.title, cand.sub, cand.extra, site) : literalHit(term, cand.title, cand.sub, cand.extra);
+        if ((term.mask & cand.mask) !== term.mask) {
+            // A letter of this word appears nowhere in the candidate.
+            return null;
+        }
+        const hit = term.kind === "fuzzy" ? fuzzyHit(term, cand) : literalHit(term, cand);
         if (!hit) {
             return null;
         }
-        const onHost = host ? labelScore(term, host, labels) : 0;
+        const onHost = host ? labelScore(term, host, cand.labels) : 0;
         if (onHost > 0) {
             hostTerms++;
         }
         positive++;
         total += hit.score + onHost;
         if (hit.field === "title") {
-            titlePos.push(...hit.positions);
+            titlePos = titlePos ? titlePos.concat(hit.positions) : hit.positions;
         } else if (hit.field === "sub") {
-            subPos.push(...hit.positions);
+            subPos = subPos ? subPos.concat(hit.positions) : hit.positions;
         }
     }
     // Every word named part of the site ("search google" for search.google.com): that's the site you meant.
     if (positive > 1 && hostTerms === positive) {
         total += WHOLE_HOST_BONUS;
     }
-    return { item: cand.item, score: total + (cand.boost ?? 0), titlePos, subPos };
+    return { item: cand.item, score: total + cand.boost, titlePos: titlePos ?? [], subPos: subPos ?? [] };
 }
 
 /**
@@ -434,18 +583,32 @@ function scoreCandidate<T>(cand: Candidate<T>, terms: Term[]): Ranked<T> | null 
  * decide what to show before anything is typed.
  */
 export function rank<T>(candidates: Candidate<T>[], query: string, limit = Number.POSITIVE_INFINITY): Ranked<T>[] {
-    const terms = parseQuery(query);
-    if (terms.length === 0 || terms.every((t) => t.negate)) {
-        // Only exclusions: keep everything that doesn't hit one, in the order given.
-        if (terms.length === 0) {
-            return [];
-        }
-        return candidates
-            .map((c) => scoreCandidate(c, terms))
-            .filter((r): r is Ranked<T> => r !== null)
-            .slice(0, limit);
+    if (parseQuery(query).length === 0) {
+        return [];
+    }
+    return rankPrepared(candidates.map(prepare), query, limit);
+}
+
+/** rank() for candidates already run through prepare(). Keep the prepared list around and reuse it. */
+export function rankPrepared<T>(candidates: readonly Prepared<T>[], query: string, limit = Number.POSITIVE_INFINITY): Ranked<T>[] {
+    const terms = prepareTerms(parseQuery(query));
+    if (terms.length === 0) {
+        return [];
     }
     const out: Ranked<T>[] = [];
+    if (terms.every((t) => t.negate)) {
+        // Only exclusions: keep everything that doesn't hit one, in the order given.
+        for (const cand of candidates) {
+            const r = scoreCandidate(cand, terms);
+            if (r) {
+                out.push(r);
+                if (out.length >= limit) {
+                    break;
+                }
+            }
+        }
+        return out;
+    }
     for (const cand of candidates) {
         const r = scoreCandidate(cand, terms);
         if (r) {
@@ -454,7 +617,7 @@ export function rank<T>(candidates: Candidate<T>[], query: string, limit = Numbe
     }
     // Stable sort, so ties keep the order the caller gave (usually most recent first).
     out.sort((a, b) => b.score - a.score);
-    return out.slice(0, limit);
+    return out.length > limit ? out.slice(0, limit) : out;
 }
 
 /** "https://www.github.com/foo/" -> "github.com/foo". What rows show and what addresses are matched against. */

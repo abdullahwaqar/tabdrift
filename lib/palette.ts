@@ -1,9 +1,9 @@
 import { copyText } from "./clipboard";
 import type { TabCommandId, TabCommandReply } from "./commands";
 import type { Mark } from "./marks";
-import { canMark, getMarks, markKey, noteOpened, onMarksChanged, toggleMark } from "./marks";
-import type { Candidate, Ranked } from "./match";
-import { displayUrl, historyBoost, hostOf, rank, recencyBoost } from "./match";
+import { canMark, getMarks, noteOpened, onMarksChanged, toggleMark } from "./marks";
+import type { Prepared, Ranked } from "./match";
+import { displayUrl, historyBoost, hostOf, prepare, rank, rankPrepared, recencyBoost } from "./match";
 import { engineById, parseAddress, parseEngineKey } from "./search";
 import type { TabSearchSettings } from "./settings";
 import { getSettings, onSettingsChanged } from "./settings";
@@ -44,6 +44,10 @@ interface HistoryInfo {
     url?: string;
     lastVisitTime: number;
     visitCount?: number;
+    /** How well it matched and where, worked out by the background so the overlay doesn't rank it again. */
+    score?: number;
+    titlePos?: number[];
+    subPos?: number[];
     /** Set when this row stands for a whole site rather than one page. */
     site?: { host: string; origin: string; count: number; pages: HistoryInfo[] };
 }
@@ -101,8 +105,12 @@ interface Detail {
     tabId?: number;
 }
 
-const SEARCH_DEBOUNCE_MS = 120;
-const SCOPED_DEBOUNCE_MS = 40;
+/** Recent history answers from memory, so it's asked right away. */
+const SEARCH_DEBOUNCE_MS = 0;
+/** Firefox's history database is only asked once typing pauses for this long. */
+const DEEP_SEARCH_DELAY_MS = 80;
+/** Cached page keys for "is this open in a tab / marked" checks, cleared when it grows past this. */
+const KEY_CACHE_LIMIT = 5000;
 const HISTORY_LIMIT = 6;
 const HISTORY_SCOPED_LIMIT = 40;
 const MARK_LIMIT = 5;
@@ -258,6 +266,16 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
     let selectedIndex = 0;
     let searchTimer: ReturnType<typeof setTimeout> | null = null;
     let searchRequestId = 0;
+
+    /** duplicateKey() cleans and parses a URL, which adds up when every result row asks. */
+    const keyCache = new Map<string, string>();
+    /** Open tabs by page key, rebuilt only when the tab list changes. */
+    let openByKey = new Map<string, TabInfo>();
+    let openByKeyFor: TabInfo[] | null = null;
+    /** Tabs ready for the matcher, rebuilt only when the tabs or marks change. */
+    let preparedTabs: Prepared<TabInfo>[] = [];
+    let preparedTabsFor: { tabs: TabInfo[]; marks: Mark[] } | null = null;
+    const preparedMarks = new WeakMap<Mark, Prepared<Mark>>();
 
     let input: HTMLInputElement | null = null;
     let resultsEl: HTMLDivElement | null = null;
@@ -590,15 +608,20 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
     }
 
     function rankTabs(q: string): TabInfo[] {
-        const now = Date.now();
-        const candidates: Candidate<TabInfo>[] = tabs.map((t) => ({
-            item: t,
-            title: t.title || "",
-            sub: displayUrl(t.url),
-            host: hostOf(t.url),
-            boost: recencyBoost(t.lastAccessed, now) * 0.5 + (isMarked(t.url) ? MARK_BOOST / 2 : 0),
-        }));
-        return remember(rank(candidates, q));
+        if (preparedTabsFor?.tabs !== tabs || preparedTabsFor.marks !== marks) {
+            const now = Date.now();
+            preparedTabs = tabs.map((t) =>
+                prepare({
+                    item: t,
+                    title: t.title || "",
+                    sub: displayUrl(t.url),
+                    host: hostOf(t.url),
+                    boost: recencyBoost(t.lastAccessed, now) * 0.5 + (isMarked(t.url) ? MARK_BOOST / 2 : 0),
+                }),
+            );
+            preparedTabsFor = { tabs, marks };
+        }
+        return remember(rankPrepared(preparedTabs, q));
     }
 
     /** Tabs showing a page that is already open elsewhere. One copy of each page is kept. */
@@ -776,47 +799,49 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             return;
         }
 
-        searchTimer = setTimeout(
-            async () => {
-                const scoped = forScope !== "all";
-                const grouped = settings?.groupHistory ?? true;
-                const rawHistory = (await send({
-                    action: "searchHistory",
-                    query,
-                    maxResults: grouped ? HISTORY_POOL_GROUPED : scoped ? HISTORY_SCOPED_LIMIT : HISTORY_POOL_PLAIN,
-                })) as HistoryInfo[];
-                // Bail if the input or scope changed (or the overlay closed) while this was in flight.
-                if (requestId !== searchRequestId || scope !== forScope || (input?.value.trim() ?? "") !== query) {
-                    return;
-                }
+        const scoped = forScope !== "all";
+        const grouped = settings?.groupHistory ?? true;
+        const maxResults = grouped ? HISTORY_POOL_GROUPED : scoped ? HISTORY_SCOPED_LIMIT : HISTORY_POOL_PLAIN;
+        // The input or scope changed (or the overlay closed) while a reply was on its way.
+        const stale = () => requestId !== searchRequestId || scope !== forScope || (input?.value.trim() ?? "") !== query;
+        const ask = (deep: boolean) => send<{ items?: HistoryInfo[]; complete?: boolean } | undefined>({ action: "searchHistory", query, maxResults, deep });
 
-                // Pages already open (or marked) show up higher in the combined list. In a scope, they stay.
-                let pages = (rawHistory ?? []).filter((h) => h.url && (scoped || (!openTabFor(h.url) && !isMarked(h.url))));
-                if (query) {
-                    const now = Date.now();
-                    pages = remember(
-                        rank(
-                            pages.map((h) => ({
-                                item: h,
-                                title: h.title || "",
-                                sub: displayUrl(h.url),
-                                host: hostOf(h.url),
-                                boost: historyBoost(h.lastVisitTime, h.visitCount, now),
-                            })),
-                            query,
-                        ),
-                    );
+        const show = (found: HistoryInfo[]) => {
+            // Pages already open (or marked) show up higher in the combined list. In a scope, they stay.
+            const pages = found.filter((h) => h.url && (scoped || (!openTabFor(h.url) && !isMarked(h.url))));
+            if (query) {
+                for (const h of pages) {
+                    hits.set(h, { t: h.titlePos ?? [], s: h.subPos ?? [], score: h.score ?? 0 });
                 }
-                const limit = scoped ? HISTORY_SCOPED_LIMIT : HISTORY_LIMIT;
-                historyResults = grouped ? collapseToSites(pages, limit) : pages.slice(0, limit);
+            }
+            const limit = scoped ? HISTORY_SCOPED_LIMIT : HISTORY_LIMIT;
+            historyResults = grouped ? collapseToSites(pages, limit) : pages.slice(0, limit);
+            if (scoped) {
+                selectedIndex = Math.min(selectedIndex, Math.max(0, getRows().length - 1));
+            }
+            renderResults();
+        };
 
-                if (scoped) {
-                    selectedIndex = Math.min(selectedIndex, Math.max(0, getRows().length - 1));
-                }
-                renderResults();
-            },
-            forScope === "all" ? SEARCH_DEBOUNCE_MS : SCOPED_DEBOUNCE_MS,
-        );
+        searchTimer = setTimeout(async () => {
+            // First answer: your recent pages, ranked in memory. Shows up right away.
+            const quick = await ask(false);
+            if (stale()) {
+                return;
+            }
+            show(quick?.items ?? []);
+            if (quick?.complete !== false) {
+                return;
+            }
+            // Then older pages from Firefox's history database, once typing settles.
+            await new Promise((resolve) => setTimeout(resolve, DEEP_SEARCH_DELAY_MS));
+            if (stale()) {
+                return;
+            }
+            const full = await ask(true);
+            if (!stale()) {
+                show(full?.items ?? []);
+            }
+        }, SEARCH_DEBOUNCE_MS);
     }
 
     function setMarks(next: Mark[]) {
@@ -825,7 +850,20 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
     }
 
     function isMarked(url: string | undefined): boolean {
-        return canMark(url) && markedKeys.has(markKey(url));
+        return canMark(url) && markedKeys.has(pageKey(url));
+    }
+
+    /** duplicateKey() (which marks also use as their key), remembered per address. */
+    function pageKey(url: string): string {
+        let key = keyCache.get(url);
+        if (key === undefined) {
+            if (keyCache.size >= KEY_CACHE_LIMIT) {
+                keyCache.clear();
+            }
+            key = duplicateKey(url);
+            keyCache.set(url, key);
+        }
+        return key;
     }
 
     /** Most used and most recently opened first. With a query, best match first. */
@@ -836,12 +874,15 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (!q) {
             return [...pool].sort((a, b) => boost(b) - boost(a));
         }
-        return remember(
-            rank(
-                pool.map((m) => ({ item: m, title: m.title, sub: displayUrl(m.url), host: hostOf(m.url), boost: boost(m) + MARK_BOOST })),
-                q,
-            ),
-        );
+        const prepared = pool.map((m) => {
+            let p = preparedMarks.get(m);
+            if (!p) {
+                p = prepare({ item: m, title: m.title, sub: displayUrl(m.url), host: hostOf(m.url), boost: boost(m) + MARK_BOOST });
+                preparedMarks.set(m, p);
+            }
+            return p;
+        });
+        return remember(rankPrepared(prepared, q));
     }
 
     /** The page behind a row, for marking with Ctrl+B. */
@@ -907,8 +948,20 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (!url) {
             return undefined;
         }
-        const key = duplicateKey(url);
-        return tabs.find((t) => !t.current && t.url && duplicateKey(t.url) === key);
+        if (openByKeyFor !== tabs) {
+            openByKey = new Map();
+            for (const t of tabs) {
+                if (!t.current && t.url) {
+                    const key = pageKey(t.url);
+                    // First one wins, like tabs.find() would.
+                    if (!openByKey.has(key)) {
+                        openByKey.set(key, t);
+                    }
+                }
+            }
+            openByKeyFor = tabs;
+        }
+        return openByKey.get(pageKey(url));
     }
 
     function openDetail(url: string | undefined, label: string) {

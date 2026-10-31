@@ -2,7 +2,8 @@ import { defineBackground } from "wxt/utils/define-background";
 import { copyText } from "../lib/clipboard";
 import type { TabCommandId, TabCommandReply } from "../lib/commands";
 import { canMark, toggleMark } from "../lib/marks";
-import { displayUrl, historyBoost, hostOf, plainWords, rank } from "../lib/match";
+import type { Prepared, Ranked } from "../lib/match";
+import { displayUrl, historyBoost, hostOf, plainWords, prepare, rankPrepared } from "../lib/match";
 import { getNewTabSettings } from "../lib/newtab/settings";
 import type { TimerState } from "../lib/newtab/timer-state";
 import { readTimer, settle, TIMER_ALARM_PREFIX, TIMER_KEY, writeTimer } from "../lib/newtab/timer-state";
@@ -16,11 +17,13 @@ const DEFAULT_HISTORY_RESULTS = 25;
 const MAX_HISTORY_RESULTS = 300;
 /** Recent pages kept around for fuzzy matching, since Firefox's own history search only finds exact words. */
 const RECENT_HISTORY_POOL = 2000;
-const RECENT_HISTORY_TTL_MS = 60_000;
+/** How often the recency part of the history scores is brought up to date. */
+const BOOST_REFRESH_MS = 5 * 60_000;
 
 export default defineBackground(() => {
     applyStoredShortcut();
     syncAllPopups();
+    watchHistory();
     void scheduleTimerAlarm();
 
     browser.storage.onChanged.addListener((changes, area) => {
@@ -87,6 +90,8 @@ export default defineBackground(() => {
         const originTabId: number | undefined = sender.tab?.id ?? (Number.isInteger(message?.fromTabId) ? message.fromTabId : undefined);
 
         if (message?.action === "getTabs") {
+            // The overlay just opened: get history ready while you start typing.
+            void recentPages().catch(() => {});
             browser.tabs
                 .query({})
                 .then((all) =>
@@ -158,11 +163,11 @@ export default defineBackground(() => {
             // Grouping by site needs a deeper pool, or one busy site fills every slot.
             const requested = Number.isInteger(message.maxResults) ? message.maxResults : DEFAULT_HISTORY_RESULTS;
             const maxResults = Math.max(1, Math.min(requested, MAX_HISTORY_RESULTS));
-            searchHistory(query, maxResults)
+            searchHistory(query, maxResults, message.deep === true)
                 .then(sendResponse)
                 .catch((err) => {
                     console.error("[tabdrift] history search failed:", err);
-                    sendResponse([]);
+                    sendResponse({ items: [], complete: true });
                 });
             return true;
         }
@@ -435,24 +440,174 @@ async function finishTimer(endsAt: number) {
 
 type HistoryItem = Browser.history.HistoryItem;
 
-let recentHistory: { at: number; items: HistoryItem[] } | null = null;
+/** A history row as the overlay gets it, with the match positions so it can highlight without re-ranking. */
+interface HistoryRow {
+    id: string;
+    title: string | undefined;
+    url: string | undefined;
+    lastVisitTime: number;
+    visitCount: number;
+    score?: number;
+    titlePos?: number[];
+    subPos?: number[];
+}
 
-async function recentPages(): Promise<HistoryItem[]> {
-    if (recentHistory && Date.now() - recentHistory.at < RECENT_HISTORY_TTL_MS) {
-        return recentHistory.items;
+/* -------------------------------------------------------------------------- */
+/* Recent pages, prepared once                                                */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Your most recent pages, ready for the fuzzy matcher, newest first. Loaded
+ * once, then kept current from history events instead of being re-read, so a
+ * keystroke never waits on the history database for these.
+ */
+let recent: Prepared<HistoryItem>[] | null = null;
+let recentByUrl = new Map<string, Prepared<HistoryItem>>();
+let recentLoading: Promise<Prepared<HistoryItem>[]> | null = null;
+let boostsAt = 0;
+
+function prepareHistory(item: HistoryItem, now = Date.now()): Prepared<HistoryItem> {
+    return prepare({
+        item,
+        // Untitled pages show their address as the title, so that's what gets matched and highlighted.
+        title: item.title || item.url || "",
+        sub: displayUrl(item.url),
+        host: hostOf(item.url),
+        boost: historyBoost(item.lastVisitTime, item.visitCount, now),
+    });
+}
+
+function recentPages(): Promise<Prepared<HistoryItem>[]> {
+    if (recent) {
+        // Recency boosts drift as time passes. Re-scoring 2000 numbers is cheap; re-reading history isn't.
+        const now = Date.now();
+        if (now - boostsAt > BOOST_REFRESH_MS) {
+            for (const p of recent) {
+                p.boost = historyBoost(p.item.lastVisitTime, p.item.visitCount, now);
+            }
+            boostsAt = now;
+        }
+        return Promise.resolve(recent);
     }
-    const items = await browser.history.search({ text: "", maxResults: RECENT_HISTORY_POOL, startTime: 0 });
-    recentHistory = { at: Date.now(), items };
+    recentLoading ??= browser.history
+        .search({ text: "", maxResults: RECENT_HISTORY_POOL, startTime: 0 })
+        .then((items) => {
+            const now = Date.now();
+            recent = items.filter((item) => !!item.url).map((item) => prepareHistory(item, now));
+            recentByUrl = new Map(recent.map((p) => [p.item.url as string, p]));
+            boostsAt = now;
+            return recent;
+        })
+        .finally(() => {
+            recentLoading = null;
+        });
+    return recentLoading;
+}
+
+/** Puts a just-visited (or retitled) page at the front of the recent pool. */
+function upsertRecent(item: HistoryItem) {
+    if (!recent || !item.url) {
+        return;
+    }
+    const old = recentByUrl.get(item.url);
+    if (old) {
+        const at = recent.indexOf(old);
+        if (at !== -1) {
+            recent.splice(at, 1);
+        }
+    } else if (recent.length >= RECENT_HISTORY_POOL) {
+        const dropped = recent.pop();
+        if (dropped?.item.url) {
+            recentByUrl.delete(dropped.item.url);
+        }
+    }
+    const next = prepareHistory(item);
+    recent.unshift(next);
+    recentByUrl.set(item.url, next);
+}
+
+function watchHistory() {
+    const history = browser.history;
+    history.onVisited?.addListener((item) => {
+        upsertRecent(item);
+        // A new visit can change what any search finds.
+        lastDirect = null;
+    });
+    // Firefox-only, so it isn't in the shared typings.
+    const titles = (history as unknown as { onTitleChanged?: { addListener(cb: (change: { url: string; title: string }) => void): void } }).onTitleChanged;
+    titles?.addListener((change) => {
+        const old = recentByUrl.get(change.url);
+        if (old) {
+            upsertRecent({ ...old.item, title: change.title });
+        }
+        lastDirect = null;
+    });
+    history.onVisitRemoved?.addListener((removed) => {
+        lastDirect = null;
+        if (removed.allHistory) {
+            recent = null;
+            recentByUrl = new Map();
+            return;
+        }
+        if (!recent) {
+            return;
+        }
+        const gone = new Set(removed.urls);
+        recent = recent.filter((p) => !gone.has(p.item.url as string));
+        for (const url of gone) {
+            recentByUrl.delete(url);
+        }
+    });
+}
+
+/* -------------------------------------------------------------------------- */
+/* Firefox's own history search, reused while you keep typing                 */
+/* -------------------------------------------------------------------------- */
+
+/** The last answer from Firefox's history search, kept so a longer query can be answered from it. */
+let lastDirect: { words: string[]; items: HistoryItem[] } | null = null;
+
+function splitWords(words: string): string[] {
+    return words.toLowerCase().split(/\s+/).filter(Boolean);
+}
+
+/**
+ * Firefox finds pages containing every word. If the last search was complete
+ * (fewer hits than the limit) and every old word is part of a new word
+ * ("rus" -> "rust book"), the new hits are a subset of the old ones, so they
+ * can be filtered here instead of asking the database again.
+ */
+function directFromCache(words: string[]): HistoryItem[] | null {
+    if (!lastDirect?.words.every((old) => words.some((w) => w.includes(old)))) {
+        return null;
+    }
+    const items = lastDirect.items.filter((item) => {
+        const hay = `${item.title ?? ""} ${item.url ?? ""}`.toLowerCase();
+        return words.every((w) => hay.includes(w));
+    });
+    lastDirect = { words, items };
     return items;
 }
 
-function historyRow(item: HistoryItem) {
+async function directSearch(text: string, words: string[]): Promise<HistoryItem[]> {
+    const items = await browser.history.search({ text, maxResults: MAX_HISTORY_RESULTS, startTime: 0 });
+    // A full page of results may have left some out, so it can't stand in for a longer query.
+    lastDirect = items.length < MAX_HISTORY_RESULTS ? { words, items } : null;
+    return items;
+}
+
+function historyRow(r: Ranked<HistoryItem> | { item: HistoryItem }): HistoryRow {
+    const item = r.item;
+    const ranked = "score" in r ? r : null;
     return {
         id: item.id,
         title: item.title || item.url,
         url: item.url,
         lastVisitTime: item.lastVisitTime ?? 0,
         visitCount: item.visitCount ?? 0,
+        score: ranked?.score,
+        titlePos: ranked?.titlePos,
+        subPos: ranked?.subPos,
     };
 }
 
@@ -460,41 +615,41 @@ function historyRow(item: HistoryItem) {
  * Firefox's history search only finds pages containing every word as typed,
  * so "ghtd" finds nothing. Its results are merged with your recent pages and
  * the lot is ranked with the same fuzzy matcher the overlay uses.
+ *
+ * Without `deep`, this answers from memory only and says whether that was the
+ * whole story (`complete`). If not, the overlay shows it and asks again with
+ * `deep` for the database results.
  */
-async function searchHistory(query: string, maxResults: number) {
+async function searchHistory(query: string, maxResults: number, deep: boolean): Promise<{ items: HistoryRow[]; complete: boolean }> {
+    const pool = await recentPages();
     if (!query.trim()) {
-        const recent = await recentPages();
-        return recent
-            .filter((item) => !!item.url)
-            .slice(0, maxResults)
-            .map(historyRow);
+        return { items: pool.slice(0, maxResults).map(historyRow), complete: true };
     }
 
-    const words = plainWords(query);
-    const [direct, recent] = await Promise.all([
-        words ? browser.history.search({ text: words, maxResults: MAX_HISTORY_RESULTS, startTime: 0 }) : Promise.resolve([]),
-        recentPages(),
-    ]);
-    const pool = new Map<string, HistoryItem>();
-    for (const item of [...direct, ...recent]) {
-        if (item.url && !pool.has(item.url)) {
-            pool.set(item.url, item);
+    const text = plainWords(query);
+    const words = splitWords(text);
+    let direct: HistoryItem[] | null = words.length > 0 ? directFromCache(words) : [];
+    if (direct === null && !deep) {
+        return { items: rankPrepared(pool, query, maxResults).map(historyRow), complete: false };
+    }
+    direct ??= await directSearch(text, words);
+
+    // Database hits first, then recent pages not already in there. Ties keep this order.
+    const now = Date.now();
+    const seen = new Set<string>();
+    const candidates: Prepared<HistoryItem>[] = [];
+    for (const item of direct) {
+        if (item.url && !seen.has(item.url)) {
+            seen.add(item.url);
+            candidates.push(recentByUrl.get(item.url) ?? prepareHistory(item, now));
         }
     }
-
-    const now = Date.now();
-    const ranked = rank(
-        [...pool.values()].map((item) => ({
-            item,
-            title: item.title || "",
-            sub: displayUrl(item.url),
-            host: hostOf(item.url),
-            boost: historyBoost(item.lastVisitTime, item.visitCount, now),
-        })),
-        query,
-        maxResults,
-    );
-    return ranked.map((r) => historyRow(r.item));
+    for (const p of pool) {
+        if (!seen.has(p.item.url as string)) {
+            candidates.push(p);
+        }
+    }
+    return { items: rankPrepared(candidates, query, maxResults).map(historyRow), complete: true };
 }
 
 /** Alt+Shift+B: mark or unmark the page you're on without opening the overlay. */
