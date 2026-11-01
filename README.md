@@ -2,6 +2,8 @@
 
 ![Tabdrift search overlay](./site/assets/social/tabdrift-social-1200x630.png)
 
+[<img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the Add-on for Firefox" width="172">](https://addons.mozilla.org/firefox/addon/tabdrift/)
+
 A fast, keyboard-first tab switcher for Firefox. Press a shortcut, type a
 few letters, jump straight to the tab you meant.
 
@@ -270,8 +272,6 @@ The gradient is [Paper Shaders](https://github.com/paper-design/shaders)
 [Bertioga Sans](https://github.com/cssobral2013/Bertioga-Sans) (SIL Open
 Font License 1.1, see `public/fonts/OFL.txt`), cut down to Latin with
 `scripts/subset-fonts.sh`.
-
-[<img src="https://blog.mozilla.org/addons/files/2020/04/get-the-addon-fx-apr-2020.svg" alt="Get the Add-on for Firefox" width="172">](https://addons.mozilla.org/firefox/addon/tabdrift/)
 
 ## Install
 
