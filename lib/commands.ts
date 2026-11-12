@@ -24,3 +24,11 @@ export interface TabCommandReply {
     /** Shown in the overlay footer. */
     message?: string;
 }
+
+/** Where a moved tab lands next to the tab it was dropped on. */
+export type MovePlace = "before" | "after";
+
+export interface MoveTabReply extends TabCommandReply {
+    /** False when the tab was already there, or a pinned tab was in the way. */
+    moved?: boolean;
+}

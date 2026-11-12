@@ -1,6 +1,6 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { copyText } from "../lib/clipboard";
-import type { TabCommandId, TabCommandReply } from "../lib/commands";
+import type { MovePlace, TabCommandId, TabCommandReply } from "../lib/commands";
 import { canMark, toggleMark } from "../lib/marks";
 import type { Prepared, Ranked } from "../lib/match";
 import { displayUrl, historyBoost, hostOf, plainWords, prepare, rankPrepared } from "../lib/match";
@@ -8,6 +8,7 @@ import { getNewTabSettings } from "../lib/newtab/settings";
 import type { TimerState } from "../lib/newtab/timer-state";
 import { readTimer, settle, TIMER_ALARM_PREFIX, TIMER_KEY, writeTimer } from "../lib/newtab/timer-state";
 import { COMMAND_NAME, getSettings } from "../lib/settings";
+import { moveTab } from "../lib/tab-move";
 import { cleanUrl } from "../lib/utils";
 
 const COPY_CLEAN_URL_COMMAND = "copy-clean-url";
@@ -180,6 +181,21 @@ export default defineBackground(() => {
                 .catch((err) => {
                     console.error(`[tabdrift] ${command} failed:`, err);
                     sendResponse({ success: false, message: "That didn't work on this tab" });
+                });
+            return true;
+        }
+
+        if (message?.action === "moveTab") {
+            if (!Number.isInteger(message.tabId) || !Number.isInteger(message.targetId)) {
+                sendResponse({ success: false, message: "No tab to move" });
+                return;
+            }
+            const place: MovePlace = message.place === "before" ? "before" : "after";
+            moveTab(message.tabId as number, message.targetId as number, place, originTabId)
+                .then(sendResponse)
+                .catch((err) => {
+                    console.error("[tabdrift] moveTab failed:", err);
+                    sendResponse({ success: false, message: "Couldn't move that tab" });
                 });
             return true;
         }

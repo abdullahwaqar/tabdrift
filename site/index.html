@@ -89,7 +89,9 @@
                             "https://abdullahwaqar.com/tabdrift/assets/raw/08-marks.png",
                             "https://abdullahwaqar.com/tabdrift/assets/raw/09-commands.png",
                             "https://abdullahwaqar.com/tabdrift/assets/raw/10-tab-actions.png",
-                            "https://abdullahwaqar.com/tabdrift/assets/raw/11-smart-search.png"
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/11-smart-search.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/12-rearrange-drag.png",
+                            "https://abdullahwaqar.com/tabdrift/assets/raw/13-rearrange-keys.png"
                         ],
                         "license": "https://github.com/abdullahwaqar/tabdrift/blob/main/LICENSE",
                         "isAccessibleForFree": true,
@@ -99,6 +101,7 @@
                             "Subdomain-aware ranking: search google finds search.google.com, gcal finds Google Calendar",
                             "Marks: Tabdrift's own bookmarks, toggled with Ctrl+B or Alt+Shift+B",
                             "Scopes for tabs, marks, history and commands, like Telescope pickers",
+                            "Rearrange tabs by dragging them or with Alt+Up/Down, including between windows",
                             "Tab and window commands: pin, mute, unload, sort by site, merge windows, copy all links",
                             "Wide layout with a preview pane",
                             "History search grouped by site",
@@ -205,6 +208,14 @@
                                 "acceptedAnswer": {
                                     "@type": "Answer",
                                     "text": "Open Tabdrift and press Ctrl+D on a highlighted tab to close it. The highlight moves to the next one. A Clean up row closes duplicate tabs in one go, and typing a site name offers to close every matching tab. Closed tabs come back with Ctrl+Shift+T."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Can I reorder my tabs with Tabdrift?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Yes. Pick the Arrange scope to see your tabs in tab bar order, one section per window. Drag a row to move its tab, or press Alt+Up or Alt+Down (Option on a Mac) to move the highlighted tab one place, and add Shift to send it to the start or end. A tab can move into another window the same way. Pinned tabs stay at the start of the tab bar."
                                 }
                             }
                         ]
@@ -475,8 +486,56 @@
                 color: var(--text-faint);
             }
             .demo-results {
+                position: relative;
                 height: 222px;
                 overflow-y: auto;
+            }
+            /* Arrange: drag a row, or Alt+arrows, to move a tab. */
+            .demo-row .grip {
+                display: flex;
+                flex-shrink: 0;
+                width: 8px;
+                margin: 0 -4px 0 -7px;
+                color: rgba(255, 255, 255, 0.22);
+                cursor: grab;
+            }
+            .demo-row .grip svg {
+                width: 8px;
+                height: 12px;
+            }
+            .demo-row:hover .grip,
+            .demo-row.selected .grip {
+                color: rgba(255, 255, 255, 0.55);
+            }
+            .demo-results.dragging,
+            .demo-results.dragging .demo-row,
+            .demo-results.dragging .grip {
+                cursor: grabbing;
+            }
+            .demo-row.drag-source {
+                opacity: 0.35;
+            }
+            .demo-drop-line {
+                position: absolute;
+                left: 12px;
+                right: 12px;
+                height: 2px;
+                border-radius: 2px;
+                background: var(--accent);
+                pointer-events: none;
+            }
+            .demo-row.moved {
+                animation: demo-moved 0.6s ease-out;
+            }
+            @keyframes demo-moved {
+                from {
+                    background: rgba(var(--accent-rgb), 0.5);
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                .demo-row.moved {
+                    animation: none;
+                }
             }
             .demo-scopes {
                 display: flex;
@@ -1411,6 +1470,7 @@
                     <a href="#history">History</a>
                     <a href="#utilities">Utilities</a>
                     <a href="#cleanup">Clean up</a>
+                    <a href="#arrange">Arrange</a>
                     <a href="#faq">FAQ</a>
                     <a
                         href="https://github.com/abdullahwaqar/tabdrift"
@@ -1443,7 +1503,8 @@
                         your history, and knows that "search google" means
                         search.google.com. Nothing there? Enter searches
                         Google, Bing or DuckDuckGo. Type &gt; for commands
-                        like pin, mute, unload or merge windows. Paste an email or a link and it hands you
+                        like pin, mute, unload or merge windows, or pick Arrange
+                        to drag your tabs into order. Paste an email or a link and it hands you
                         the domain or a tracker-free URL. And Ctrl+T lands on a
                         new tab page with the cursor already in its search box.
                     </p>
@@ -1553,6 +1614,14 @@
                         </button>
                         <button class="demo-chip" type="button" data-value="> ">
                             commands
+                        </button>
+                        <button
+                            class="demo-chip"
+                            type="button"
+                            data-scope="arrange"
+                            data-value=""
+                        >
+                            tab order
                         </button>
                         <button
                             class="demo-chip"
@@ -1856,6 +1925,54 @@
                             Right arrow on a tab lists what you can do with it.
                         </figcaption>
                     </figure>
+                    <figure
+                        class="shot"
+                        id="shot-12"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-12"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/tabdrift/assets/web/12-rearrange-drag-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/tabdrift/assets/web/12-rearrange-drag-960.webp   960w,
+                                https://abdullahwaqar.com/tabdrift/assets/web/12-rearrange-drag-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="The Arrange list in tab bar order, with a tab being dragged up and a line showing where it will land"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Arrange lists your tabs in tab bar order. Drag a row where you want it.
+                        </figcaption>
+                    </figure>
+                    <figure
+                        class="shot"
+                        id="shot-13"
+                        role="tabpanel"
+                        aria-labelledby="shot-tab-13"
+                        hidden
+                    >
+                        <img
+                            src="https://abdullahwaqar.com/tabdrift/assets/web/13-rearrange-keys-960.webp"
+                            srcset="
+                                https://abdullahwaqar.com/tabdrift/assets/web/13-rearrange-keys-960.webp   960w,
+                                https://abdullahwaqar.com/tabdrift/assets/web/13-rearrange-keys-1920.webp 1920w
+                            "
+                            sizes="(max-width: 980px) calc(100vw - 48px), 932px"
+                            width="1280"
+                            height="800"
+                            alt="A tab just moved into the second window with Alt+Down, the footer saying Moved to window 2"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                        <figcaption>
+                            Alt+&uarr;&darr; moves the highlighted tab, even into another window.
+                        </figcaption>
+                    </figure>
                 </div>
                 <div class="shot-tabs" role="tablist" aria-label="Screenshots">
                     <button
@@ -1968,6 +2085,26 @@
                     >
                         Tab actions
                     </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-12"
+                        aria-controls="shot-12"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Drag to reorder
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        id="shot-tab-13"
+                        aria-controls="shot-13"
+                        aria-selected="false"
+                        tabindex="-1"
+                    >
+                        Move with keys
+                    </button>
                 </div>
             </section>
 
@@ -2074,7 +2211,8 @@
                             Start with a symbol and a space to search only
                             tabs, marks, history or commands, like Telescope's
                             pickers. They're the same keys Firefox's address bar
-                            uses. Tab cycles through them.
+                            uses. Tab cycles through them, and on to Arrange,
+                            which lists your tabs in tab bar order.
                         </p>
                         <div class="code-block">
                             <span class="keep">%</span> tabs &nbsp;
@@ -2668,6 +2806,85 @@
                 </p>
             </section>
 
+            <section class="block" id="arrange">
+                <div class="block-head">
+                    <h2>Put your tabs in order</h2>
+                    <p>
+                        Arrange lists your tabs the way the tab bar does, one
+                        window after another. Move them around without squinting
+                        at a strip of tiny tabs.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>Drag a row</h3>
+                        <p>
+                            Grab any row and drop it between two others. A line
+                            shows where it will land, and the list scrolls when
+                            you drag near its edge. Esc cancels the drag.
+                        </p>
+                        <div class="code-block">
+                            <span class="dim">Shipping OTA updates</span><br />
+                            <span class="keep">Sprint 14 board</span><br />
+                            <span class="dim">API reference</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Or keep your hands on the keys</h3>
+                        <p>
+                            Move the highlighted tab one place at a time, or
+                            send it straight to the start or end of its window.
+                            On a Mac, use Option instead of Alt.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Alt</span>+<span
+                                    class="keycap"
+                                    >&uarr;</span
+                                >/<span class="keycap">&darr;</span>
+                                <span>move it one place</span>
+                            </div>
+                            <div>
+                                <span class="keycap">Alt</span>+<span
+                                    class="keycap"
+                                    >Shift</span
+                                >+<span class="keycap">&uarr;</span>/<span
+                                    class="keycap"
+                                    >&darr;</span
+                                >
+                                <span>to the start or end</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Across windows</h3>
+                        <p>
+                            Every window gets its own section. Move a tab past
+                            the last one in a window and it lands at the top of
+                            the next. Typing filters the list but keeps the tab
+                            bar order.
+                        </p>
+                        <div class="key-row">
+                            <div>
+                                <span class="keycap">Alt</span>+<span
+                                    class="keycap"
+                                    >&uarr;</span
+                                >/<span class="keycap">&darr;</span>
+                                <span>on any tab, in any list, starts arranging it</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    Pinned tabs stay at the start of the tab bar, as Firefox
+                    requires: an unpinned tab can't move in among them, and a
+                    pinned one can't move out. The tab you opened Tabdrift on
+                    can move within its window but not to another one. Get to
+                    Arrange with Tab, a click on it in the scope bar, or Move
+                    this tab along the tab bar in a tab's actions.
+                </p>
+            </section>
+
             <section class="block" id="customize">
                 <div class="block-head">
                     <h2>Make it yours</h2>
@@ -2848,6 +3065,18 @@
                             tab. Closed tabs come back with Ctrl+Shift+T.
                         </p>
                     </details>
+                    <details>
+                        <summary>Can I reorder my tabs with Tabdrift?</summary>
+                        <p>
+                            Yes. Pick the Arrange scope to see your tabs in tab
+                            bar order, one section per window. Drag a row to
+                            move its tab, or press Alt+&uarr; or Alt+&darr;
+                            (Option on a Mac) to move the highlighted tab one
+                            place. Add Shift to send it to the start or end. A
+                            tab can move into another window the same way, and
+                            pinned tabs stay at the start of the tab bar.
+                        </p>
+                    </details>
                 </div>
             </section>
         </main>
@@ -2970,6 +3199,7 @@
                 var SCOPES = [
                     { id: "all", label: "All", key: "" },
                     { id: "tabs", label: "Tabs", key: "%" },
+                    { id: "arrange", label: "Arrange", key: "" },
                     { id: "marks", label: "Marks", key: "*" },
                     { id: "history", label: "History", key: "^" },
                     { id: "commands", label: "Commands", key: ">" },
@@ -3041,6 +3271,13 @@
                 let rowEls = [];
                 let selectedIndex = 0;
                 let hintTimer = null;
+                // Arrange: the tab that just moved, and a row being dragged.
+                let movedTab = null;
+                let demoDrag = null;
+                let swallowDemoClick = false;
+                const DEMO_ALT = /Mac|iPhone|iPad/.test(navigator.platform) ? "\u2325" : "Alt+";
+                const GRIP_SVG =
+                    '<svg viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"/><circle cx="8.5" cy="3" r="1.4"/><circle cx="3.5" cy="8" r="1.4"/><circle cx="8.5" cy="8" r="1.4"/><circle cx="3.5" cy="13" r="1.4"/><circle cx="8.5" cy="13" r="1.4"/></svg>';
 
                 const faviconColor = (title) => {
                     let hash = 0;
@@ -3546,7 +3783,7 @@
                         kind: "tab",
                         data: data,
                     }));
-                    if (scope === "tabs") {
+                    if (scope === "tabs" || scope === "arrange") {
                         return tabRows;
                     }
                     if (scope === "marks") {
@@ -3625,6 +3862,13 @@
                                       `${flipLabel}Enter keep open`,
                                       "\u2192 pages",
                                   ];
+                    } else if (row && row.kind === "tab" && scope === "arrange") {
+                        parts = [
+                            "\u2191\u2193 navigate",
+                            `${DEMO_ALT}\u2191\u2193 move`,
+                            "drag to reorder",
+                            "Enter switch",
+                        ];
                     } else if (row && row.kind === "tab") {
                         parts = [
                             "\u2191\u2193 navigate",
@@ -3830,6 +4074,8 @@
                                 heading = "From history";
                             } else if (section === "web") {
                                 heading = "Web";
+                            } else if (scope === "arrange") {
+                                heading = "Tab order";
                             } else if (
                                 scope === "tabs" ||
                                 utils.length > 0 ||
@@ -3951,6 +4197,18 @@
                             el.appendChild(text);
                             el.appendChild(cBadge);
                         } else {
+                            if (scope === "arrange" && row.kind === "tab") {
+                                const grip = document.createElement("span");
+                                grip.className = "grip";
+                                grip.innerHTML = GRIP_SVG;
+                                el.appendChild(grip);
+                                if (row.data === movedTab) {
+                                    el.classList.add("moved");
+                                }
+                                el.addEventListener("pointerdown", (e) =>
+                                    startDemoDrag(e, row.data, el),
+                                );
+                            }
                             const favicon = document.createElement("div");
                             favicon.className = "favicon";
                             favicon.style.setProperty(
@@ -3982,7 +4240,11 @@
                             }
                         }
 
-                        el.addEventListener("mouseenter", () => select(i));
+                        el.addEventListener("mouseenter", () => {
+                            if (!demoDrag || !demoDrag.active) {
+                                select(i);
+                            }
+                        });
                         el.addEventListener("click", (e) =>
                             activate(i, e.shiftKey, isFlip(e)),
                         );
@@ -4035,6 +4297,11 @@
                     armed = null;
                     const showAll = !q && scope !== "all";
                     filtered = q ? rankAll(q, TABS) : showAll ? TABS.slice() : [];
+                    if (scope === "arrange" && q) {
+                        // Arrange filters but keeps tab bar order.
+                        const keep = new Set(filtered);
+                        filtered = TABS.filter((t) => keep.has(t));
+                    }
                     // A marked page that's open shows up as its tab, with a star.
                     filteredMarks = q
                         ? rankAll(
@@ -4062,12 +4329,151 @@
                     render();
                 };
 
+                // Moves a tab next to another one in TABS, which stands in for the tab bar.
+                const placeTab = (tab, target, after) => {
+                    if (!target || tab === target) {
+                        return false;
+                    }
+                    TABS.splice(TABS.indexOf(tab), 1);
+                    TABS.splice(TABS.indexOf(target) + (after ? 1 : 0), 0, tab);
+                    movedTab = tab;
+                    const q = input.value;
+                    filter(q);
+                    movedTab = null;
+                    const at = allRows().findIndex((r) => r.data === tab);
+                    if (at !== -1) {
+                        select(at);
+                        rowEls[at].scrollIntoView({ block: "nearest" });
+                    }
+                    return true;
+                };
+
+                const startDemoDrag = (e, tab, el) => {
+                    if (e.button !== 0 || scope !== "arrange") {
+                        return;
+                    }
+                    e.preventDefault();
+                    demoDrag = { id: e.pointerId, tab: tab, el: el, y0: e.clientY, active: false, drop: null, line: null };
+                };
+
+                results.addEventListener("pointermove", (e) => {
+                    const d = demoDrag;
+                    if (!d || e.pointerId !== d.id) {
+                        return;
+                    }
+                    if (!d.active) {
+                        if (Math.abs(e.clientY - d.y0) < 5) {
+                            return;
+                        }
+                        d.active = true;
+                        results.setPointerCapture(e.pointerId);
+                        d.el.classList.add("drag-source");
+                        results.classList.add("dragging");
+                        d.line = document.createElement("div");
+                        d.line.className = "demo-drop-line";
+                        results.appendChild(d.line);
+                    }
+                    const rows = allRows();
+                    let index = -1;
+                    let after = true;
+                    for (let i = 0; i < rowEls.length; i++) {
+                        const b = rowEls[i].getBoundingClientRect();
+                        index = i;
+                        if (e.clientY < b.top + b.height / 2) {
+                            after = false;
+                            break;
+                        }
+                    }
+                    const target = rows[index] && rows[index].data;
+                    const from = TABS.indexOf(d.tab);
+                    const to = TABS.indexOf(target);
+                    const still = !target || target === d.tab || (after ? to + 1 === from : to - 1 === from);
+                    d.drop = still ? null : { target: target, after: after };
+                    d.line.hidden = still;
+                    if (!still) {
+                        const b = rowEls[index].getBoundingClientRect();
+                        const top = (after ? b.bottom : b.top) - results.getBoundingClientRect().top + results.scrollTop;
+                        d.line.style.top = `${Math.round(top) - 1}px`;
+                    }
+                    const box = results.getBoundingClientRect();
+                    if (e.clientY < box.top + 24) {
+                        results.scrollTop -= 8;
+                    } else if (e.clientY > box.bottom - 24) {
+                        results.scrollTop += 8;
+                    }
+                });
+
+                const endDemoDrag = (e, commit) => {
+                    const d = demoDrag;
+                    if (!d || e.pointerId !== d.id) {
+                        return;
+                    }
+                    demoDrag = null;
+                    if (!d.active) {
+                        return;
+                    }
+                    d.line.remove();
+                    d.el.classList.remove("drag-source");
+                    results.classList.remove("dragging");
+                    swallowDemoClick = true;
+                    setTimeout(() => {
+                        swallowDemoClick = false;
+                    }, 0);
+                    if (commit && d.drop) {
+                        placeTab(d.tab, d.drop.target, d.drop.after);
+                    }
+                };
+                results.addEventListener("pointerup", (e) => endDemoDrag(e, true));
+                results.addEventListener("pointercancel", (e) => endDemoDrag(e, false));
+                results.addEventListener(
+                    "click",
+                    (e) => {
+                        if (swallowDemoClick) {
+                            swallowDemoClick = false;
+                            e.stopPropagation();
+                        }
+                    },
+                    true,
+                );
+
                 input.addEventListener("input", () => {
                     filter(input.value);
                 });
                 input.addEventListener("keydown", (e) => {
                     const total = allRows().length;
                     const row = allRows()[selectedIndex];
+                    if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+                        e.preventDefault();
+                        if (!row || row.kind !== "tab") {
+                            return;
+                        }
+                        const up = e.key === "ArrowUp";
+                        if (scope !== "arrange") {
+                            // From any other list, start arranging the highlighted tab.
+                            const tab = row.data;
+                            scope = "arrange";
+                            input.value = "";
+                            filter("");
+                            const at = allRows().findIndex((r) => r.data === tab);
+                            select(at);
+                            rowEls[at].scrollIntoView({ block: "nearest" });
+                            flashHint(`Arranging \u00a0\u2022\u00a0 ${DEMO_ALT}\u2191\u2193 moves the tab, or drag it`);
+                            return;
+                        }
+                        if (e.shiftKey) {
+                            if (!placeTab(row.data, up ? TABS[0] : TABS[TABS.length - 1], !up)) {
+                                flashHint(up ? "Already at the start" : "Already at the end");
+                            }
+                            return;
+                        }
+                        const next = allRows()[selectedIndex + (up ? -1 : 1)];
+                        if (!next) {
+                            flashHint(up ? "Already at the top" : "Already at the bottom");
+                            return;
+                        }
+                        placeTab(row.data, next.data, !up);
+                        return;
+                    }
                     if (e.key === "ArrowDown" && total) {
                         e.preventDefault();
                         select(Math.min(selectedIndex + 1, total - 1));
@@ -4155,7 +4561,7 @@
 
                 document.querySelectorAll(".demo-chip").forEach((chip) => {
                     chip.addEventListener("click", () => {
-                        scope = "all";
+                        scope = chip.dataset.scope || "all";
                         input.value = chip.dataset.value;
                         filter(input.value);
                         input.focus();

@@ -1,5 +1,5 @@
 import { copyText } from "./clipboard";
-import type { TabCommandId, TabCommandReply } from "./commands";
+import type { MovePlace, MoveTabReply, TabCommandId, TabCommandReply } from "./commands";
 import type { Mark } from "./marks";
 import { canMark, getMarks, noteOpened, onMarksChanged, toggleMark } from "./marks";
 import type { Prepared, Ranked } from "./match";
@@ -86,11 +86,13 @@ type ResultRow =
     | { kind: "history"; data: HistoryInfo; child?: boolean };
 
 /** Like Telescope's pickers: narrow the search to one kind of thing. The keys are the ones Firefox's address bar uses. */
-type Scope = "all" | "tabs" | "marks" | "history" | "commands";
+type Scope = "all" | "tabs" | "arrange" | "marks" | "history" | "commands";
 
 const SCOPES: { id: Scope; label: string; key: string; placeholder: string }[] = [
     { id: "all", label: "All", key: "", placeholder: "Search tabs, marks, history or the web, or paste a link..." },
     { id: "tabs", label: "Tabs", key: "%", placeholder: "Search open tabs..." },
+    // No prefix key: Firefox's address bar has none to borrow. Tab, a click, or Alt+Up/Down on a tab gets here.
+    { id: "arrange", label: "Arrange", key: "", placeholder: "Filter tabs. Drag a row, or move it with Alt+\u2191\u2193..." },
     { id: "marks", label: "Marks", key: "*", placeholder: "Search your marks... (Ctrl+B marks a row)" },
     { id: "history", label: "History", key: "^", placeholder: "Search history..." },
     { id: "commands", label: "Commands", key: ">", placeholder: "Run a command on this tab or window..." },
@@ -129,6 +131,14 @@ const GUARDED_KEY_EVENTS = ["keydown", "keypress", "keyup"] as const;
 const GUARDED_FOCUS_EVENTS = ["focusin", "focus"] as const;
 const REFOCUS_LIMIT = 10;
 const REFOCUS_WINDOW_MS = 1000;
+/** How far the pointer has to travel before a press on a row becomes a drag. */
+const DRAG_THRESHOLD_PX = 5;
+/** Dragging this close to the top or bottom of the list scrolls it. */
+const DRAG_EDGE_PX = 36;
+const DRAG_SCROLL_MAX = 16;
+/** Key presses waiting to move a tab. Holding the key down past this drops the extras. */
+const MOVE_QUEUE_LIMIT = 3;
+const MOVED_FLASH_MS = 700;
 
 /**
  * Where the palette runs: over a web page, in the toolbar popup on pages Firefox won't let us script,
@@ -267,6 +277,27 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
     let searchTimer: ReturnType<typeof setTimeout> | null = null;
     let searchRequestId = 0;
 
+    /** Tab moves run one after another, so holding Alt+Down doesn't race itself. */
+    let moveChain: Promise<void> = Promise.resolve();
+    let pendingMoves = 0;
+    /** The tab that just moved, flashed once so your eye can follow it. */
+    let justMovedId: number | null = null;
+    let justMovedTimer: ReturnType<typeof setTimeout> | null = null;
+    /** A row being dragged in the Arrange list. `active` once the pointer has moved far enough to count as a drag. */
+    let drag: {
+        pointerId: number;
+        tab: TabInfo;
+        sourceEl: HTMLElement;
+        startY: number;
+        lastY: number;
+        active: boolean;
+        drop: { target: TabInfo; place: MovePlace } | null;
+        indicator: HTMLDivElement | null;
+        raf: number | null;
+    } | null = null;
+    /** A drag ends with a click on the row underneath. That one click must not switch tabs. */
+    let swallowClick = false;
+
     /** duplicateKey() cleans and parses a URL, which adds up when every result row asks. */
     const keyCache = new Map<string, string>();
     /** Open tabs by page key, rebuilt only when the tab list changes. */
@@ -360,6 +391,20 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         });
         input.addEventListener("paste", () => setTimeout(maybeQuickCopy, 0));
         scrim.addEventListener("click", hideOverlay);
+        resultsEl.addEventListener("pointermove", onDragMove);
+        resultsEl.addEventListener("pointerup", (e) => endDrag(e, true));
+        resultsEl.addEventListener("pointercancel", (e) => endDrag(e, false));
+        resultsEl.addEventListener("lostpointercapture", (e) => endDrag(e, false));
+        resultsEl.addEventListener(
+            "click",
+            (e) => {
+                if (swallowClick) {
+                    swallowClick = false;
+                    e.stopPropagation();
+                }
+            },
+            true,
+        );
 
         for (const s of SCOPES) {
             const btn = document.createElement("button");
@@ -516,6 +561,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             searchTimer = null;
         }
         searchRequestId++;
+        stopDrag();
 
         overlayActive = false;
         removeGuards();
@@ -579,7 +625,8 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         for (const btn of scopesEl.querySelectorAll<HTMLButtonElement>(".scope")) {
             btn.classList.toggle("on", btn.dataset.scope === scope);
         }
-        input.placeholder = SCOPES.find((s) => s.id === scope)?.placeholder ?? "";
+        const placeholder = SCOPES.find((s) => s.id === scope)?.placeholder ?? "";
+        input.placeholder = IS_MAC ? placeholder.replace("Alt+", "⌥") : placeholder;
     }
 
     /** Open tabs, most recently used first, without the tab the overlay is in. */
@@ -622,6 +669,31 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             preparedTabsFor = { tabs, marks };
         }
         return remember(rankPrepared(preparedTabs, q));
+    }
+
+    /** The window the overlay belongs to. Its tabs come first in the Arrange list. */
+    function homeWindow(): number | undefined {
+        return tabs.find((t) => t.current)?.windowId ?? tabs.find((t) => t.active)?.windowId;
+    }
+
+    /**
+     * Every tab in tab strip order, this window first. A query only filters: the order stays the strip's,
+     * so moving a row up or down means the same thing as moving the tab left or right.
+     */
+    function arrangeTabs(q: string): TabInfo[] {
+        const home = homeWindow();
+        const windows = windowLabels();
+        const windowRank = (t: TabInfo) => (t.windowId === home ? 0 : (windows.get(t.windowId) ?? 0));
+        const ordered = [...tabs].sort((a, b) => windowRank(a) - windowRank(b) || (a.index ?? 0) - (b.index ?? 0));
+        if (!q) {
+            return ordered;
+        }
+        const matched = new Set(rankTabs(q));
+        return ordered.filter((t) => matched.has(t));
+    }
+
+    function arranging(): boolean {
+        return scope === "arrange" && !detail;
     }
 
     /** Tabs showing a page that is already open elsewhere. One copy of each page is kept. */
@@ -686,6 +758,11 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
 
     /** Action rows sit above the results but are never the preselected row, so Enter still switches tabs. */
     function defaultIndex(): number {
+        if (arranging()) {
+            // Start on the tab you're on, the one you most likely want to move.
+            const here = filtered.findIndex((t) => t.current);
+            return here === -1 ? 0 : here;
+        }
         const first = getRows().findIndex((r) => r.kind !== "action");
         return first === -1 ? 0 : first;
     }
@@ -712,6 +789,8 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (scope === "tabs") {
             filtered = q ? rankTabs(q) : recentTabs();
             actions = computeActions(q);
+        } else if (scope === "arrange") {
+            filtered = arrangeTabs(q);
         } else if (scope === "commands") {
             const all = buildCommands();
             commandRows = q
@@ -1128,6 +1207,14 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             run: () => tabCommand("duplicate", tab.id, true),
         });
         rows.push({
+            id: "tab-arrange",
+            title: `Move ${noun} along the tab bar`,
+            sub: `Opens Arrange: ${altLabel()}\u2191\u2193 or drag it into place`,
+            icon: MOVE_ICON,
+            keywords: "arrange rearrange reorder order position drag left right",
+            run: () => arrangeTab(tab.id),
+        });
+        rows.push({
             id: "tab-window",
             title: `Move ${noun} to a new window`,
             sub: "Pops it out on its own",
@@ -1361,6 +1448,9 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (scope === "tabs") {
             return [...actions.map((data): ResultRow => ({ kind: "action", data })), ...filtered.map((data): ResultRow => ({ kind: "tab", data }))];
         }
+        if (scope === "arrange") {
+            return filtered.map((data): ResultRow => ({ kind: "tab", data }));
+        }
         if (scope === "marks") {
             return markRows;
         }
@@ -1469,6 +1559,16 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             parts.push(armedId === row.data.id ? "Enter again to close them" : "Enter close");
         } else if (row?.kind === "cmd") {
             parts.push(armedId === row.data.id ? "Enter again to confirm" : "Enter run");
+        } else if (row?.kind === "tab" && arranging()) {
+            parts.push(
+                `${altLabel()}\u2191\u2193 move`,
+                IS_MAC ? "\u2325\u21e7\u2191\u2193 start/end" : "Alt+Shift+\u2191\u2193 start/end",
+                "drag to reorder",
+                "Enter switch",
+            );
+            if (!row.data.current) {
+                parts.push(`${closeKeyLabel()} close`);
+            }
         } else if (row?.kind === "tab") {
             parts.push("Enter switch", "→ actions", isMarked(row.data.url) ? "Ctrl+B unmark" : "Ctrl+B mark");
             if (!row.data.current) {
@@ -1615,7 +1715,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         return new Map(ids.map((id, i) => [id, i + 1]));
     }
 
-    function buildTabRow(tab: TabInfo, windows: Map<number | undefined, number>): HTMLElement[] {
+    function buildTabRow(tab: TabInfo, windows: Map<number | undefined, number>, arrange = false): HTMLElement[] {
         const icon = document.createElement("img");
         icon.className = "favicon";
         icon.src = tab.favIconUrl || "";
@@ -1625,6 +1725,13 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         }
 
         const parts: HTMLElement[] = [icon, textBlock(tab.title || "Untitled", displayUrl(tab.url), { key: tab })];
+        if (arrange) {
+            const grip = document.createElement("span");
+            grip.className = "grip";
+            grip.title = "Drag to move";
+            grip.innerHTML = GRIP_ICON;
+            parts.unshift(grip);
+        }
         if (tab.audible && !tab.muted) {
             parts.push(badge("♪ playing", "soft"));
         } else if (tab.muted) {
@@ -1633,7 +1740,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (tab.discarded) {
             parts.push(badge("unloaded", "soft"));
         }
-        if (windows.size > 1) {
+        if (windows.size > 1 && !arrange) {
             parts.push(badge(`win ${windows.get(tab.windowId) ?? "?"}`, "soft"));
         }
         if (isMarked(tab.url)) {
@@ -1730,10 +1837,18 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         renderResults();
     }
 
+    function arrangeHeader(windowId: number | undefined, rows: ResultRow[], windowCount: number): string {
+        const count = rows.filter((r) => r.kind === "tab" && r.data.windowId === windowId).length;
+        return `${windowCount > 1 ? windowName(windowId) : "Tab order"} \u00b7 ${count}`;
+    }
+
     function emptyMessage(): string {
         const typed = !!input?.value.trim();
         if (scope === "tabs") {
             return typed ? "No matching tabs" : "No other tabs open";
+        }
+        if (scope === "arrange") {
+            return typed ? "No matching tabs" : "No tabs to arrange";
         }
         if (scope === "marks") {
             return typed ? "No matching marks" : "No marks yet. Press Ctrl+B on any row, or Alt+Shift+B on any page, to mark it";
@@ -1751,6 +1866,8 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (!resultsEl) {
             return;
         }
+        // The rows are about to be replaced, so a drag in progress has nothing left to drop on.
+        stopDrag();
         resultsEl.innerHTML = "";
         rowEls = [];
 
@@ -1767,18 +1884,22 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         }
 
         const windows = windowLabels();
-        let lastKind: ResultRow["kind"] | null = null;
+        const arrange = arranging();
+        let lastGroup: string | null = null;
 
         rows.forEach((row, i) => {
-            if (row.kind !== lastKind) {
-                const title = i === 0 || !detail ? sectionTitle(row.kind) : null;
+            // In Arrange each window gets its own header. Elsewhere each kind of row does.
+            const group = arrange && row.kind === "tab" ? `window:${row.data.windowId}` : row.kind;
+            if (group !== lastGroup) {
+                const title =
+                    arrange && row.kind === "tab" ? arrangeHeader(row.data.windowId, rows, windows.size) : i === 0 || !detail ? sectionTitle(row.kind) : null;
                 if (title) {
                     const header = document.createElement("div");
                     header.className = "section-header";
                     header.textContent = title;
                     resultsEl?.appendChild(header);
                 }
-                lastKind = row.kind;
+                lastGroup = group;
             }
 
             const el = document.createElement("div");
@@ -1798,7 +1919,12 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             } else if (row.kind === "cmd") {
                 el.append(...buildCommandRow(row.data));
             } else if (row.kind === "tab") {
-                el.append(...buildTabRow(row.data, windows));
+                el.append(...buildTabRow(row.data, windows, arrange));
+                if (arrange) {
+                    const tab = row.data;
+                    el.classList.toggle("moved", tab.id === justMovedId);
+                    el.addEventListener("pointerdown", (e) => startDrag(e, tab, el));
+                }
             } else if (row.kind === "mark") {
                 el.append(...buildMarkRow(row.data));
             } else {
@@ -1807,7 +1933,11 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
 
             el.addEventListener("click", (e) => activateRow(row, e.shiftKey, isFlipKey(e)));
             const capturedIndex = i;
-            el.addEventListener("mouseenter", () => selectRow(capturedIndex));
+            el.addEventListener("mouseenter", () => {
+                if (!drag?.active) {
+                    selectRow(capturedIndex);
+                }
+            });
 
             resultsEl?.appendChild(el);
             rowEls.push(el);
@@ -1890,6 +2020,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
                 ["% * ^ >", "tabs, marks, history, commands"],
                 ["Ctrl+B", "mark or unmark a row"],
                 ["Tab", "next scope"],
+                [`${altLabel()}\u2191\u2193`, "rearrange tabs"],
                 ["Ctrl+J / K", "down / up"],
             ]);
             return;
@@ -1918,7 +2049,13 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
                         .join(", ") || undefined,
                 ],
             ]);
-            add("div", "p-tip", "→ pin, mute, move, copy, unload or close it");
+            add(
+                "div",
+                "p-tip",
+                arranging()
+                    ? `${altLabel()}\u2191\u2193 moves it one place, with Shift to the start or end. Or drag the row`
+                    : "\u2192 pin, mute, move, copy, unload or close it",
+            );
         } else if (row.kind === "history") {
             const h = row.data;
             if (h.site && !row.child) {
@@ -2013,6 +2150,271 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             return;
         }
         await cmd.run(stay);
+    }
+
+    function altLabel(): string {
+        return IS_MAC ? "\u2325" : "Alt+";
+    }
+
+    function windowName(windowId: number | undefined): string {
+        return windowId === homeWindow() ? "This window" : `Window ${windowLabels().get(windowId) ?? "?"}`;
+    }
+
+    /** Switches to the Arrange list with this tab highlighted, ready to move. */
+    function arrangeTab(tabId: number) {
+        detail = null;
+        if (input) {
+            input.value = "";
+        }
+        scope = "arrange";
+        renderScopes();
+        input?.focus();
+        refresh("");
+        const at = getRows().findIndex((r) => r.kind === "tab" && r.data.id === tabId);
+        if (at !== -1) {
+            selectedIndex = at;
+            renderResults();
+        }
+        flashHint(`Arranging  \u2022  ${altLabel()}\u2191\u2193 moves the tab, or drag it`);
+    }
+
+    /** Tab moves wait for the one before, so each starts from where the last one left the tab. */
+    function queueMove(job: () => Promise<void>) {
+        if (pendingMoves >= MOVE_QUEUE_LIMIT) {
+            return;
+        }
+        pendingMoves++;
+        moveChain = moveChain
+            .then(job)
+            .catch((err) => console.error("[tabdrift] moving a tab failed:", err))
+            .finally(() => {
+                pendingMoves--;
+            });
+    }
+
+    /** Moves `tab` next to `target`, then redraws with the highlight still on it. */
+    async function moveTabTo(tab: TabInfo, target: TabInfo, place: MovePlace) {
+        const fromWindow = tab.windowId;
+        const reply = await send<MoveTabReply | undefined>({ action: "moveTab", tabId: tab.id, targetId: target.id, place });
+        if (!overlayActive) {
+            return;
+        }
+        tabs = await send({ action: "getTabs" });
+        refresh(input?.value ?? "");
+        const at = getRows().findIndex((r) => r.kind === "tab" && r.data.id === tab.id);
+        if (at !== -1) {
+            selectedIndex = at;
+        }
+        if (reply?.moved) {
+            justMovedId = tab.id;
+            if (justMovedTimer) {
+                clearTimeout(justMovedTimer);
+            }
+            justMovedTimer = setTimeout(() => {
+                justMovedId = null;
+                justMovedTimer = null;
+            }, MOVED_FLASH_MS);
+        }
+        renderResults();
+
+        const now = tabs.find((t) => t.id === tab.id);
+        if (!reply?.success) {
+            flashHint(reply?.message ?? "Couldn't move that tab");
+        } else if (reply.message) {
+            flashHint(reply.message);
+        } else if (reply.moved && now && now.windowId !== fromWindow) {
+            flashHint(`\u2713 Moved to ${windowName(now.windowId).toLowerCase()}`);
+        } else if (hintFlash) {
+            // An older message (a pinned tab in the way, say) no longer applies.
+            hintFlash = null;
+            updateHint(getRows()[selectedIndex]);
+        }
+    }
+
+    /**
+     * Alt+Up/Down: one place up or down the Arrange list. With Shift, to the start or end of its window.
+     * Past the last tab of a window it goes into the next window, at the near edge.
+     */
+    function moveSelectedTab(step: -1 | 1, toEdge: boolean) {
+        queueMove(async () => {
+            const rows = getRows();
+            const row = rows[selectedIndex];
+            if (!arranging() || row?.kind !== "tab") {
+                return;
+            }
+            const tab = row.data;
+            let target: TabInfo | undefined;
+            let place: MovePlace;
+            if (toEdge) {
+                // Pinned tabs have their own start and end.
+                const group = tabs.filter((t) => t.windowId === tab.windowId && !!t.pinned === !!tab.pinned).sort((a, b) => (a.index ?? 0) - (b.index ?? 0));
+                target = step < 0 ? group[0] : group[group.length - 1];
+                place = step < 0 ? "before" : "after";
+            } else {
+                const next = rows[selectedIndex + step];
+                if (next?.kind !== "tab") {
+                    flashHint(step < 0 ? "Already at the top" : "Already at the bottom");
+                    return;
+                }
+                target = next.data;
+                const sameWindow = target.windowId === tab.windowId;
+                place = step > 0 ? (sameWindow ? "after" : "before") : sameWindow ? "before" : "after";
+            }
+            if (!target || target.id === tab.id) {
+                flashHint(step < 0 ? "Already at the start" : "Already at the end");
+                return;
+            }
+            await moveTabTo(tab, target, place);
+        });
+    }
+
+    /** A drop that would leave the tab exactly where it is. */
+    function isNoOpDrop(tab: TabInfo, target: TabInfo, place: MovePlace): boolean {
+        if (target.id === tab.id) {
+            return true;
+        }
+        if (target.windowId !== tab.windowId || tab.index === undefined || target.index === undefined) {
+            return false;
+        }
+        return place === "before" ? tab.index === target.index - 1 : tab.index === target.index + 1;
+    }
+
+    function startDrag(e: PointerEvent, tab: TabInfo, el: HTMLElement) {
+        // A press released outside the list never reached endDrag. Start fresh.
+        stopDrag();
+        if (e.button !== 0 || !arranging() || !resultsEl) {
+            return;
+        }
+        if (e.target instanceof Element && e.target.closest(".close-btn")) {
+            return;
+        }
+        // No text selection while dragging, and the search box keeps focus.
+        e.preventDefault();
+        // No pointer capture yet: it would retarget the click of a plain press away from the row.
+        drag = { pointerId: e.pointerId, tab, sourceEl: el, startY: e.clientY, lastY: e.clientY, active: false, drop: null, indicator: null, raf: null };
+    }
+
+    function onDragMove(e: PointerEvent) {
+        if (!drag || e.pointerId !== drag.pointerId || !resultsEl) {
+            return;
+        }
+        drag.lastY = e.clientY;
+        if (!drag.active) {
+            if (Math.abs(e.clientY - drag.startY) < DRAG_THRESHOLD_PX) {
+                return;
+            }
+            drag.active = true;
+            // Now it's a drag: keep getting the pointer even when it leaves the list.
+            resultsEl.setPointerCapture(e.pointerId);
+            drag.sourceEl.classList.add("drag-source");
+            resultsEl.classList.add("dragging");
+            drag.indicator = document.createElement("div");
+            drag.indicator.className = "drop-line";
+            drag.indicator.hidden = true;
+            resultsEl.appendChild(drag.indicator);
+            drag.raf = requestAnimationFrame(autoScroll);
+        }
+        updateDrop();
+    }
+
+    /** Finds the gap between rows nearest the pointer and draws the drop line there. */
+    function updateDrop() {
+        if (!drag?.active || !drag.indicator || !resultsEl) {
+            return;
+        }
+        const rows = getRows();
+        let index = -1;
+        let place: MovePlace = "after";
+        for (let i = 0; i < rowEls.length; i++) {
+            if (rows[i]?.kind !== "tab") {
+                continue;
+            }
+            const box = rowEls[i]?.getBoundingClientRect();
+            if (box && drag.lastY < box.top + box.height / 2) {
+                index = i;
+                place = "before";
+                break;
+            }
+            index = i;
+        }
+        const row = rows[index];
+        const el = rowEls[index];
+        if (row?.kind !== "tab" || !el || isNoOpDrop(drag.tab, row.data, place)) {
+            drag.drop = null;
+            drag.indicator.hidden = true;
+            return;
+        }
+        drag.drop = { target: row.data, place };
+        const box = el.getBoundingClientRect();
+        const y = (place === "before" ? box.top : box.bottom) - resultsEl.getBoundingClientRect().top + resultsEl.scrollTop;
+        drag.indicator.style.top = `${Math.round(y) - 1}px`;
+        drag.indicator.hidden = false;
+    }
+
+    /** Scrolls the list while a dragged row is held near its top or bottom edge. */
+    function autoScroll() {
+        if (!drag?.active || !resultsEl) {
+            return;
+        }
+        const box = resultsEl.getBoundingClientRect();
+        const y = drag.lastY;
+        let dy = 0;
+        if (y < box.top + DRAG_EDGE_PX) {
+            dy = -Math.min(DRAG_SCROLL_MAX, Math.ceil((box.top + DRAG_EDGE_PX - y) / 3));
+        } else if (y > box.bottom - DRAG_EDGE_PX) {
+            dy = Math.min(DRAG_SCROLL_MAX, Math.ceil((y - box.bottom + DRAG_EDGE_PX) / 3));
+        }
+        if (dy !== 0) {
+            const before = resultsEl.scrollTop;
+            resultsEl.scrollTop += dy;
+            if (resultsEl.scrollTop !== before) {
+                updateDrop();
+            }
+        }
+        drag.raf = requestAnimationFrame(autoScroll);
+    }
+
+    function endDrag(e: PointerEvent, commit: boolean) {
+        if (!drag || e.pointerId !== drag.pointerId) {
+            return;
+        }
+        const done = drag;
+        stopDrag();
+        if (!done.active) {
+            return;
+        }
+        swallowNextClick();
+        input?.focus();
+        if (commit && done.drop) {
+            const { target, place } = done.drop;
+            queueMove(() => moveTabTo(done.tab, target, place));
+        }
+    }
+
+    /** The click that follows a drop arrives straight after it, or not at all if the pointer left the list. */
+    function swallowNextClick() {
+        swallowClick = true;
+        setTimeout(() => {
+            swallowClick = false;
+        }, 0);
+    }
+
+    /** Puts everything back as it was before the drag. Doesn't move anything. */
+    function stopDrag() {
+        const done = drag;
+        if (!done) {
+            return;
+        }
+        drag = null;
+        if (done.raf !== null) {
+            cancelAnimationFrame(done.raf);
+        }
+        done.indicator?.remove();
+        done.sourceEl.classList.remove("drag-source");
+        resultsEl?.classList.remove("dragging");
+        if (resultsEl?.hasPointerCapture(done.pointerId)) {
+            resultsEl.releasePointerCapture(done.pointerId);
+        }
     }
 
     /** Closes tabs through the background script and keeps the overlay open for the next one. */
@@ -2213,6 +2615,29 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (e.isComposing) {
             return;
         }
+        if (drag?.active) {
+            // Keys would move the list out from under the pointer. Esc drops the drag.
+            e.preventDefault();
+            if (e.key === "Escape") {
+                stopDrag();
+                swallowNextClick();
+            }
+            return;
+        }
+        if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "ArrowUp" || e.key === "ArrowDown")) {
+            e.preventDefault();
+            if (arranging()) {
+                moveSelectedTab(e.key === "ArrowUp" ? -1 : 1, e.shiftKey);
+                return;
+            }
+            // From any other list, start arranging the highlighted tab (or the one whose actions are open).
+            const row = getRows()[selectedIndex];
+            const tabId = detail?.tabId ?? (row?.kind === "tab" ? row.data.id : undefined);
+            if (tabId !== undefined && !e.repeat) {
+                arrangeTab(tabId);
+            }
+            return;
+        }
         const ctrlOnly = e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey;
         if (ctrlOnly && e.code === "KeyD") {
             // Always swallow it (it's "bookmark this page" in Firefox), but only act once per key press.
@@ -2355,6 +2780,8 @@ const GEAR_ICON = SVG(
 );
 const CLOCK_ICON = SVG(`<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>`);
 const DOT_ICON = SVG(`<circle cx="12" cy="12" r="2" fill="currentColor"/>`);
+const MOVE_ICON = SVG(`<path d="M8 20V4"/><path d="m4 8 4-4 4 4"/><path d="M16 4v16"/><path d="m12 16 4 4 4-4"/>`);
+const GRIP_ICON = `<svg viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"/><circle cx="8.5" cy="3" r="1.4"/><circle cx="3.5" cy="8" r="1.4"/><circle cx="8.5" cy="8" r="1.4"/><circle cx="3.5" cy="13" r="1.4"/><circle cx="8.5" cy="13" r="1.4"/></svg>`;
 
 const TOAST_STYLES = `
 <style>
@@ -2523,6 +2950,7 @@ const STYLES = `
 
   #body { display: flex; min-height: 0; flex: 1; }
   #results {
+    position: relative;
     flex: 1;
     min-width: 0;
     overflow-y: auto;
@@ -2645,6 +3073,49 @@ const STYLES = `
   .row.child .util-icon { color: rgba(255, 255, 255, 0.3); }
 
   .favicon { width: 18px; height: 18px; flex-shrink: 0; border-radius: 3px; }
+
+  /* Arrange: drag a row to move its tab. */
+  .grip {
+    display: flex;
+    flex-shrink: 0;
+    width: 10px;
+    margin: 0 -4px 0 -10px;
+    color: rgba(255, 255, 255, 0.2);
+    cursor: grab;
+    transition: color 0.1s ease;
+  }
+  .grip svg { width: 10px; height: 14px; }
+  .row:hover .grip, .row.selected .grip { color: rgba(255, 255, 255, 0.55); }
+  #results.dragging, #results.dragging .row, #results.dragging .grip { cursor: grabbing; }
+  #results.dragging .row:hover { background: none; }
+  #results.dragging .row.selected { background: color-mix(in srgb, var(--accent) 28%, transparent); }
+  .row.drag-source { opacity: 0.35; }
+  .drop-line {
+    position: absolute;
+    left: 16px;
+    right: 16px;
+    height: 2px;
+    border-radius: 2px;
+    background: var(--accent);
+    pointer-events: none;
+  }
+  .drop-line::before {
+    content: "";
+    position: absolute;
+    left: -4px;
+    top: -3px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .row.moved { animation: tabdrift-moved 0.6s ease-out; }
+  @keyframes tabdrift-moved {
+    from { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .row.moved { animation: none; }
+  }
 
   .util-icon {
     width: 18px;

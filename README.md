@@ -25,14 +25,14 @@ of words ("rust" in "Pull requests") are left out.
 
 ### Search syntax
 
-| Type        | Finds                                                    |
-| ----------- | -------------------------------------------------------- |
-| `rust book` | both words, in any order, in the title or address        |
-| `'exact`    | that exact text                                          |
-| `^git`      | titles or addresses that start with it                   |
-| `.pdf$`     | titles or addresses that end with it                     |
-| `!jira`     | leaves out anything containing it                        |
-| `Rust`      | a capital letter makes that word match case exactly      |
+| Type        | Finds                                               |
+| ----------- | --------------------------------------------------- |
+| `rust book` | both words, in any order, in the title or address   |
+| `'exact`    | that exact text                                     |
+| `^git`      | titles or addresses that start with it              |
+| `.pdf$`     | titles or addresses that end with it                |
+| `!jira`     | leaves out anything containing it                   |
+| `Rust`      | a capital letter makes that word match case exactly |
 
 ### Scopes
 
@@ -40,16 +40,36 @@ Narrow the search to one kind of thing, like Telescope's pickers. The keys
 are the ones Firefox's own address bar uses: type the symbol and a space at
 the start.
 
-| Key | Scope     | Before you type                     |
-| --- | --------- | ----------------------------------- |
-| `%` | Tabs      | all your tabs, most recent first    |
-| `*` | Marks     | your marks, most used first         |
-| `^` | History   | the sites you visited most recently |
-| `>` | Commands  | everything you can do (see below)   |
+| Key | Scope    | Before you type                     |
+| --- | -------- | ----------------------------------- |
+| `%` | Tabs     | all your tabs, most recent first    |
+| `*` | Marks    | your marks, most used first         |
+| `^` | History  | the sites you visited most recently |
+| `>` | Commands | everything you can do (see below)   |
 
 **Tab** and **Shift+Tab** cycle through the scopes, and **Backspace** in an
 empty box goes back to searching everything. The scope bar under the search
 box is clickable too.
+
+### Rearrange tabs
+
+The **Arrange** scope (between Tabs and Marks, no prefix key) lists your tabs
+in tab bar order, one section per window, starting on the tab you're on.
+
+- **Alt+Up / Alt+Down** (**Option** on a Mac) moves the highlighted tab one
+  place. Past the last tab of a window it moves into the next window.
+- **Alt+Shift+Up / Alt+Shift+Down** moves it to the start or end of its window.
+- **Drag** a row with the mouse and drop it between two others. The list
+  scrolls when you drag near its edge, and **Esc** cancels the drag.
+- Typing filters the list but keeps tab bar order, so a move jumps over the
+  tabs that don't match.
+- **Alt+Up / Alt+Down** on a tab in any other list switches to Arrange with
+  that tab highlighted. So does "Move this tab along the tab bar" in its
+  actions (**Right arrow**) and in the `>` commands.
+
+Pinned tabs stay at the start of the tab bar, as Firefox requires: an
+unpinned tab can't move in among them, and a pinned one can't move out. The
+tab Tabdrift is open on can move within its window but not to another one.
 
 ### Marks
 
@@ -73,7 +93,8 @@ from Firefox's bookmarks, and need no extra permission.
 ### Tab actions and commands
 
 **Right arrow** on a tab lists what you can do with it: pin, mute, reload
-(Shift+Enter skips the cache), duplicate, move to a new window, unload it to
+(Shift+Enter skips the cache), duplicate, move it along the tab bar, move to a
+new window, unload it to
 free memory, mark it, copy its clean link, Markdown link or title, close
 every tab from that site, mark it, or close it.
 
