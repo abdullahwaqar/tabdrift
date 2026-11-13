@@ -4,11 +4,13 @@ import type { Mark } from "./marks";
 import { canMark, getMarks, noteOpened, onMarksChanged, toggleMark } from "./marks";
 import type { Prepared, Ranked } from "./match";
 import { displayUrl, historyBoost, hostOf, prepare, rank, rankPrepared, recencyBoost } from "./match";
-import { engineById, parseAddress, parseEngineKey } from "./search";
+import { activeProviders } from "./providers";
 import type { TabSearchSettings } from "./settings";
 import { getSettings, onSettingsChanged } from "./settings";
 import type { UtilAction } from "./utils";
 import { buildUtilities, cleanUrl, duplicateKey, groupBySite } from "./utils";
+import type { WebRow } from "./web-rows";
+import { planWebRows as planWeb } from "./web-rows";
 
 interface TabInfo {
     id: number;
@@ -50,16 +52,6 @@ interface HistoryInfo {
     subPos?: number[];
     /** Set when this row stands for a whole site rather than one page. */
     site?: { host: string; origin: string; count: number; pages: HistoryInfo[] };
-}
-
-/** A web search or an address to open, so the overlay can stand in for the address bar. */
-interface WebRow {
-    id: "search-keyed" | "search" | "go";
-    /** What the row shows: the search terms or the address. */
-    title: string;
-    sub: string;
-    badge: string;
-    url: string;
 }
 
 /** Something to run: a tab action, a window command, a copy. */
@@ -875,47 +867,17 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         queueSearch(q);
     }
 
-    /**
-     * Search and "go to" rows. They jump to the top when the intent is clear:
-     * an engine key ("g ..." or "... g"), a full link, or nothing else matched.
-     */
+    /** Search and "go to" rows. See planWebRows in web-rows.ts for when they go on top. */
     function planWebRows(q: string) {
-        const engine = engineById(settings?.searchEngine);
-        const plain: WebRow = {
-            id: "search",
-            title: q,
-            sub: `Search with ${engine.name}`,
-            badge: engine.key,
-            url: engine.searchUrl(q),
-        };
-
-        const keyed = parseEngineKey(q);
-        if (keyed) {
-            // "vitamin d" might not mean DuckDuckGo, so the full text stays one arrow away.
-            webRows = [
-                {
-                    id: "search-keyed",
-                    title: keyed.query,
-                    sub: `Search with ${keyed.engine.name}`,
-                    badge: keyed.engine.key,
-                    url: keyed.engine.searchUrl(keyed.query),
-                },
-                plain,
-            ];
-            webFirst = true;
-            return;
-        }
-
-        const address = parseAddress(q);
-        if (address) {
-            const go: WebRow = { id: "go", title: address.url, sub: "Open in a new tab", badge: "go", url: address.url };
-            webRows = address.explicit ? [go] : [go, plain];
-            webFirst = address.explicit || (filtered.length === 0 && utilities.length === 0);
-            return;
-        }
-
-        webRows = [plain];
-        webFirst = filtered.length === 0 && utilities.length === 0 && markResults.length === 0;
+        const plan = planWeb(q, {
+            engineId: settings?.searchEngine,
+            hasTabs: filtered.length > 0,
+            hasUtilities: utilities.length > 0,
+            hasMarks: markResults.length > 0,
+            providers: settings?.providersOn ? activeProviders(settings.customProviders ?? [], settings.builtinProvidersOn ?? true) : [],
+        });
+        webRows = plan.rows;
+        webFirst = plan.first;
     }
 
     /** History lives in the background script, so it arrives a moment after the tabs. */

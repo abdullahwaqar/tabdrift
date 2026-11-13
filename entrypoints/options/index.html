@@ -351,7 +351,8 @@
                 font-size: 11px;
                 opacity: 0.7;
             }
-            .row-hint kbd {
+            .row-hint kbd,
+            .provider-list kbd {
                 font-family: var(--mono);
                 font-size: 11px;
                 padding: 0 4px;
@@ -380,6 +381,95 @@
             }
             button.secondary:hover {
                 border-color: var(--accent);
+            }
+            /* search providers */
+            .row.stack {
+                grid-template-columns: 1fr;
+                gap: 14px;
+            }
+            .row.stack[hidden] {
+                display: none;
+            }
+            .sub-toggle,
+            .row.stack .row-title {
+                font-size: 13px;
+                font-weight: 500;
+            }
+            .sub-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 12px;
+            }
+            .row.stack .row-title {
+                margin-top: 6px;
+            }
+            .provider-list {
+                display: grid;
+                gap: 6px;
+                margin: 0;
+                padding: 0;
+                list-style: none;
+            }
+            .provider-list.builtin li {
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                font-size: 12.5px;
+                color: var(--text-dim);
+            }
+            .provider-list.builtin[data-off="true"] li {
+                opacity: 0.45;
+            }
+            .provider-list.builtin kbd {
+                min-width: 38px;
+                text-align: center;
+            }
+            .provider-edit {
+                display: grid;
+                grid-template-columns: 1fr 110px auto;
+                gap: 6px;
+                padding: 10px;
+                border: 1px solid var(--border);
+                border-radius: 9px;
+                background: var(--bg-raised);
+            }
+            .provider-edit input {
+                min-width: 0;
+                padding: 6px 8px;
+                border: 1px solid var(--border-strong);
+                border-radius: 6px;
+                background: var(--bg);
+                color: var(--text);
+                font: inherit;
+                font-size: 12.5px;
+            }
+            .provider-edit input.url {
+                grid-column: 1 / -1;
+                font-family: var(--mono);
+                font-size: 12px;
+            }
+            .provider-edit input:focus-visible {
+                outline: none;
+                border-color: var(--accent);
+            }
+            .provider-edit input[aria-invalid="true"] {
+                border-color: #f87171;
+            }
+            .provider-edit .remove {
+                padding: 6px 10px;
+            }
+            .provider-error {
+                grid-column: 1 / -1;
+                margin: 0;
+                font-size: 12px;
+                color: #f87171;
+            }
+            .provider-error:empty {
+                display: none;
+            }
+            .providers-add {
+                justify-self: start;
             }
             footer {
                 display: flex;
@@ -569,6 +659,58 @@
                             aria-labelledby="engine-label"
                         ></div>
                     </div>
+                </div>
+
+                <div class="row">
+                    <div class="row-copy">
+                        <label class="row-title" for="providers-on"
+                            >Search providers</label
+                        >
+                        <p class="row-hint">
+                            Search a site straight from the overlay: type its
+                            key, a space and your search, like
+                            <kbd>yt lofi beats</kbd> or <kbd>wiki esp32</kbd>.
+                            Your tabs still come first: the provider row goes
+                            on top only when no tab matches.
+                        </p>
+                    </div>
+                    <div class="row-control">
+                        <div class="switch">
+                            <input id="providers-on" type="checkbox" />
+                            <span class="track"></span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row stack" id="providers-detail">
+                    <label class="sub-toggle" for="builtin-providers-on">
+                        <span>Built-in providers</span>
+                        <span class="switch">
+                            <input id="builtin-providers-on" type="checkbox" />
+                            <span class="track"></span>
+                        </span>
+                    </label>
+                    <ul id="builtin-providers" class="provider-list builtin"></ul>
+
+                    <span class="row-title" id="custom-providers-label">Your providers</span>
+                    <p class="row-hint">
+                        Search a site, then copy the address of the results
+                        page and put <kbd>{q}</kbd> (or <kbd>%s</kbd>) where
+                        your search was. Keys are letters, numbers,
+                        <kbd>.</kbd>, <kbd>-</kbd> or <kbd>_</kbd>; separate
+                        several with spaces. Yours win over a built-in with
+                        the same key. <kbd>g</kbd>, <kbd>b</kbd>,
+                        <kbd>d</kbd> and <kbd>n</kbd> stay with the search
+                        engines.
+                    </p>
+                    <ul
+                        id="custom-providers"
+                        class="provider-list"
+                        aria-labelledby="custom-providers-label"
+                    ></ul>
+                    <button id="add-provider" class="secondary providers-add" type="button">
+                        Add provider
+                    </button>
                 </div>
 
                 <div class="row">

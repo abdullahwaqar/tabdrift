@@ -1,3 +1,4 @@
+import type { SearchProvider } from "./providers";
 import type { SearchEngineId } from "./search";
 import { DEFAULT_ENGINE_ID } from "./search";
 
@@ -21,6 +22,12 @@ export interface TabSearchSettings {
     keepOpenOnOpen: boolean;
     /** Engine used for plain searches. A one-letter key before or after the query picks another one. */
     searchEngine: SearchEngineId;
+    /** Search providers ("yt lofi", "wiki esp32"). Off means search works exactly as it did before providers. */
+    providersOn: boolean;
+    /** The providers that come with Tabdrift (YouTube, Wikipedia...). Your own ones still work with this off. */
+    builtinProvidersOn: boolean;
+    /** Providers you added. They win a key clash with a built-in one. */
+    customProviders: SearchProvider[];
     /** How wide the overlay is: 640px, 880px, or most of the window. */
     width: OverlayWidth;
     /** A details pane beside the results (full address, folder, last visit...). Only when the overlay is wide enough. */
@@ -38,6 +45,9 @@ export const DEFAULT_SETTINGS: TabSearchSettings = {
     groupHistory: true,
     keepOpenOnOpen: false,
     searchEngine: DEFAULT_ENGINE_ID,
+    providersOn: true,
+    builtinProvidersOn: true,
+    customProviders: [],
     width: "wide",
     showPreview: true,
 };

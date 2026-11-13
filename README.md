@@ -206,6 +206,36 @@ press Enter. No Ctrl+T, Ctrl+L first.
   on, and **Ctrl+Enter** (Cmd+Enter on a Mac) opens it in the background
   and keeps the overlay open.
 
+### Search providers
+
+Search a site directly: type its key, a space and your search.
+
+| Key    | Searches      |
+| ------ | ------------- |
+| `yt`   | YouTube       |
+| `ytm`  | YouTube Music |
+| `wiki` | Wikipedia     |
+| `gh`   | GitHub        |
+| `mdn`  | MDN           |
+| `npm`  | npm           |
+| `maps` | Google Maps   |
+
+`ytm bohemian rhapsody` opens YouTube Music's results, and
+`wiki esp32` goes straight to the article when the title matches.
+
+- **Your tabs come first.** The provider row goes on top only when no tab,
+  mark or utility matches what you typed. Otherwise it sits with the other
+  web rows, above history. `gh issues` still finds your GitHub issues tab.
+- **The key goes at the start.** `lofi yt` is a normal search. The engine
+  keys (`g`, `b`, `d`, `n`) work exactly as before and can't be taken by a
+  provider.
+- **Add your own** in settings: a name, one or more keys, and the address
+  of a results page with `{q}` (or `%s`) where the search goes, for example
+  `https://open.spotify.com/search/{q}`. Yours win over a built-in with the
+  same key.
+- Switch the built-ins off, or providers as a whole, in settings. With
+  providers off, search behaves exactly as it did before.
+
 ### New tab and other locked pages
 
 Firefox doesn't let extensions draw on `about:` pages (including the new

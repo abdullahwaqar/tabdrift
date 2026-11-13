@@ -1,4 +1,6 @@
 import { exportMarks, getMarks, importMarks, onMarksChanged } from "../../lib/marks";
+import type { SearchProvider } from "../../lib/providers";
+import { BUILTIN_PROVIDERS, isValidTemplate, keyProblem } from "../../lib/providers";
 import type { SearchEngineId } from "../../lib/search";
 import { SEARCH_ENGINES } from "../../lib/search";
 import type { OverlayPosition, OverlayWidth, TabSearchSettings } from "../../lib/settings";
@@ -16,6 +18,12 @@ const keepOpenInput = document.getElementById("keep-open") as HTMLInputElement;
 const enginePicker = document.getElementById("engine-picker") as HTMLDivElement;
 const widthPicker = document.getElementById("width-picker") as HTMLDivElement;
 const showPreviewInput = document.getElementById("show-preview") as HTMLInputElement;
+const providersOnInput = document.getElementById("providers-on") as HTMLInputElement;
+const providersDetail = document.getElementById("providers-detail") as HTMLDivElement;
+const builtinProvidersOnInput = document.getElementById("builtin-providers-on") as HTMLInputElement;
+const builtinList = document.getElementById("builtin-providers") as HTMLUListElement;
+const customList = document.getElementById("custom-providers") as HTMLUListElement;
+const addProviderBtn = document.getElementById("add-provider") as HTMLButtonElement;
 const exportMarksBtn = document.getElementById("export-marks") as HTMLButtonElement;
 const importMarksBtn = document.getElementById("import-marks") as HTMLButtonElement;
 const importFile = document.getElementById("import-file") as HTMLInputElement;
@@ -61,6 +69,13 @@ async function init() {
     renderWidthPicker();
     setWidth(settings.width);
     showPreviewInput.checked = settings.showPreview;
+    providersOnInput.checked = settings.providersOn;
+    builtinProvidersOnInput.checked = settings.builtinProvidersOn;
+    renderBuiltinProviders();
+    for (const p of settings.customProviders) {
+        addProviderRow(p);
+    }
+    syncProvidersUi();
     await showMarksCount();
     onMarksChanged(() => void showMarksCount());
 
@@ -174,6 +189,119 @@ widthPicker.addEventListener("keydown", (e) => {
     }
 });
 
+function renderBuiltinProviders() {
+    builtinList.innerHTML = "";
+    for (const p of BUILTIN_PROVIDERS) {
+        const li = document.createElement("li");
+        const key = document.createElement("kbd");
+        key.textContent = p.keys.join(" ");
+        li.append(key, p.name);
+        builtinList.append(li);
+    }
+}
+
+function syncProvidersUi() {
+    providersDetail.hidden = !providersOnInput.checked;
+    builtinList.dataset.off = String(!builtinProvidersOnInput.checked);
+}
+
+providersOnInput.addEventListener("change", syncProvidersUi);
+builtinProvidersOnInput.addEventListener("change", syncProvidersUi);
+
+function textInput(className: string, placeholder: string, label: string, value: string): HTMLInputElement {
+    const input = document.createElement("input");
+    input.type = "text";
+    input.className = className;
+    input.placeholder = placeholder;
+    input.value = value;
+    input.spellcheck = false;
+    input.autocomplete = "off";
+    input.setAttribute("aria-label", label);
+    return input;
+}
+
+function addProviderRow(p?: SearchProvider) {
+    const li = document.createElement("li");
+    li.className = "provider-edit";
+    li.dataset.id = p?.id ?? `custom-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
+    const name = textInput("name", "Name, e.g. Spotify", "Provider name", p?.name ?? "");
+    const keys = textInput("keys", "Key, e.g. sp", "Keys", p?.keys.join(" ") ?? "");
+    const url = textInput("url", "https://open.spotify.com/search/{q}", "Search address", p?.url ?? "");
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "secondary remove";
+    remove.textContent = "Remove";
+    remove.addEventListener("click", () => li.remove());
+    const error = document.createElement("p");
+    error.className = "provider-error";
+    error.setAttribute("aria-live", "polite");
+    for (const input of [name, keys, url]) {
+        input.addEventListener("input", () => {
+            input.removeAttribute("aria-invalid");
+            error.textContent = "";
+        });
+    }
+    li.append(name, keys, remove, url, error);
+    customList.append(li);
+    if (!p) {
+        name.focus();
+    }
+}
+
+addProviderBtn.addEventListener("click", () => addProviderRow());
+
+const KEY_MESSAGES = {
+    empty: "Add a key, like sp.",
+    format: "Keys can only use letters, numbers, . - and _ (up to 16 characters).",
+    reserved: "g, b, d and n belong to the search engines. Pick another key.",
+};
+
+/** Reads your providers from the form. Returns null and flags the rows when something needs fixing. */
+function readCustomProviders(): SearchProvider[] | null {
+    const out: SearchProvider[] = [];
+    const seen = new Set<string>();
+    let ok = true;
+    for (const li of customList.querySelectorAll<HTMLLIElement>("li.provider-edit")) {
+        const name = li.querySelector<HTMLInputElement>("input.name") as HTMLInputElement;
+        const keys = li.querySelector<HTMLInputElement>("input.keys") as HTMLInputElement;
+        const url = li.querySelector<HTMLInputElement>("input.url") as HTMLInputElement;
+        const error = li.querySelector<HTMLParagraphElement>(".provider-error") as HTMLParagraphElement;
+        // A row you left completely empty is just dropped.
+        if (!name.value.trim() && !keys.value.trim() && !url.value.trim()) {
+            continue;
+        }
+        const keyList = keys.value
+            .split(/[\s,]+/)
+            .map((k) => k.trim().toLowerCase())
+            .filter(Boolean);
+        let message = "";
+        let bad: HTMLInputElement | null = null;
+        const problem = keyList.length === 0 ? "empty" : keyList.map(keyProblem).find((x) => x !== null);
+        const dupe = keyList.find((k) => seen.has(k));
+        if (problem) {
+            message = KEY_MESSAGES[problem];
+            bad = keys;
+        } else if (dupe) {
+            message = `Another of your providers already uses ${dupe}.`;
+            bad = keys;
+        } else if (!isValidTemplate(url.value)) {
+            message = "The address needs to start with https:// and have {q} where the search goes.";
+            bad = url;
+        }
+        error.textContent = message;
+        if (bad) {
+            bad.setAttribute("aria-invalid", "true");
+            ok = false;
+            continue;
+        }
+        for (const k of keyList) {
+            seen.add(k);
+        }
+        out.push({ id: li.dataset.id ?? "", name: name.value.trim() || keyList[0] || "Search", keys: keyList, url: url.value.trim() });
+    }
+    return ok ? out : null;
+}
+
 async function showMarksCount() {
     const n = (await getMarks()).length;
     marksCount.textContent = n === 0 ? "You have no marks yet." : `You have ${n} mark${n === 1 ? "" : "s"}.`;
@@ -264,6 +392,14 @@ accentInput.addEventListener("input", () => {
 });
 
 saveBtn.addEventListener("click", async () => {
+    const customProviders = readCustomProviders();
+    if (!customProviders) {
+        // Show the rows that need fixing, without changing your on/off choice.
+        providersDetail.hidden = false;
+        customList.querySelector<HTMLInputElement>('[aria-invalid="true"]')?.focus();
+        status.textContent = "Check your providers.";
+        return;
+    }
     const settings: TabSearchSettings = {
         shortcut: currentShortcut,
         accent: accentInput.value,
@@ -275,6 +411,9 @@ saveBtn.addEventListener("click", async () => {
         searchEngine: currentEngine,
         width: currentWidth,
         showPreview: showPreviewInput.checked,
+        providersOn: providersOnInput.checked,
+        builtinProvidersOn: builtinProvidersOnInput.checked,
+        customProviders,
     };
 
     await saveSettings(settings);

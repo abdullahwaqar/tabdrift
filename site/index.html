@@ -106,6 +106,7 @@
                             "Wide layout with a preview pane",
                             "History search grouped by site",
                             "Web search with Google, Bing, DuckDuckGo or no-AI DuckDuckGo using a one-letter key",
+                            "Search a site directly with a short key: yt for YouTube, ytm for YouTube Music, wiki for Wikipedia, gh for GitHub, or your own",
                             "Open typed addresses like github.com or localhost:5173",
                             "A new tab page that opens with the cursor in its search box",
                             "Shortcuts, weather, a to-do list and a focus timer on the new tab page",
@@ -176,6 +177,14 @@
                                 "acceptedAnswer": {
                                     "@type": "Answer",
                                     "text": "Google, Bing, DuckDuckGo and DuckDuckGo without AI (noai.duckduckgo.com). Pick your default in settings. The keys g, b, d and n choose one for a single search, typed either before or after the search, like \"g esp32 pinout\" or \"esp32 pinout d\"."
+                                }
+                            },
+                            {
+                                "@type": "Question",
+                                "name": "Can I search YouTube, Wikipedia or another site directly?",
+                                "acceptedAnswer": {
+                                    "@type": "Answer",
+                                    "text": "Yes. Type the site's key, a space and your search: yt for YouTube, ytm for YouTube Music, wiki for Wikipedia, gh for GitHub, mdn for MDN, npm for npm and maps for Google Maps. You can add your own in settings with a name, a key and a results address containing {q}. Your open tabs still come first: the site's row only goes on top when nothing you have open matches."
                                 }
                             },
                             {
@@ -1466,6 +1475,7 @@
                     <a href="#how">How it works</a>
                     <a href="#marks">Marks</a>
                     <a href="#search">Web search</a>
+                    <a href="#providers">Sites</a>
                     <a href="#new-tab">New tab</a>
                     <a href="#history">History</a>
                     <a href="#utilities">Utilities</a>
@@ -1502,7 +1512,8 @@
                         right tab. Not open? It finds the page in your marks or
                         your history, and knows that "search google" means
                         search.google.com. Nothing there? Enter searches
-                        Google, Bing or DuckDuckGo. Type &gt; for commands
+                        Google, Bing or DuckDuckGo, or put yt or wiki first to
+                        search YouTube or Wikipedia directly. Type &gt; for commands
                         like pin, mute, unload or merge windows, or pick Arrange
                         to drag your tabs into order. Paste an email or a link and it hands you
                         the domain or a tracker-free URL. And Ctrl+T lands on a
@@ -1629,6 +1640,13 @@
                             data-value="esp32 pinout g"
                         >
                             a web search
+                        </button>
+                        <button
+                            class="demo-chip"
+                            type="button"
+                            data-value="ytm queen"
+                        >
+                            a site search
                         </button>
                         <button
                             class="demo-chip"
@@ -2342,6 +2360,79 @@
                 </p>
             </section>
 
+            <section class="block" id="providers">
+                <div class="block-head">
+                    <h2>Search a site directly</h2>
+                    <p>
+                        Skip the search engine when you already know where the
+                        answer is. Type a site's key, a space and your search,
+                        and Enter takes you straight to that site's results.
+                    </p>
+                </div>
+                <div class="util-grid">
+                    <div class="util-card">
+                        <h3>Key, space, search</h3>
+                        <p>
+                            YouTube, YouTube Music, Wikipedia, GitHub, MDN, npm
+                            and Google Maps come built in. The key goes at the
+                            start, so <code>lofi yt</code> stays a normal
+                            search.
+                        </p>
+                        <div class="code-block">
+                            <span class="hl">ytm</span>
+                            <span class="keep">queen</span>
+                            <span class="dim">YouTube Music</span><br />
+                            <span class="hl">wiki</span>
+                            <span class="keep">esp32</span>
+                            <span class="dim">Wikipedia</span><br />
+                            <span class="hl">gh</span>
+                            <span class="keep">wxt</span>
+                            <span class="dim">GitHub</span><br />
+                            <span class="hl">maps</span>
+                            <span class="keep">lahore</span>
+                            <span class="dim">Google Maps</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Your tabs still come first</h3>
+                        <p>
+                            The site's row goes on top only when nothing you
+                            have open matches. Otherwise it waits under your
+                            tabs and marks, so <code>gh issues</code> still
+                            finds the GitHub tab you already have.
+                        </p>
+                        <div class="code-block">
+                            <span class="hl">gh</span>
+                            <span class="keep">issues</span><br />
+                            <span class="dim">1.</span>
+                            <span class="keep">your open issues tab</span><br />
+                            <span class="dim">2.</span>
+                            <span class="keep">search GitHub</span>
+                        </div>
+                    </div>
+                    <div class="util-card">
+                        <h3>Add your own</h3>
+                        <p>
+                            In settings, give it a name, a key and the address
+                            of a results page with <code>{q}</code> where the
+                            search goes. Yours win over a built-in with the
+                            same key, and you can switch the built-ins off.
+                        </p>
+                        <div class="code-block">
+                            <span class="hl">sp</span>
+                            <span class="dim">Spotify</span><br />
+                            <span class="keep">open.spotify.com/search/{q}</span>
+                        </div>
+                    </div>
+                </div>
+                <p class="util-note">
+                    Keys are matched inside your browser as you type, and
+                    nothing is sent anywhere until you press Enter. Then your
+                    search goes straight to the site you picked, the same as
+                    searching there yourself. No extra permissions needed.
+                </p>
+            </section>
+
             <section class="block" id="new-tab">
                 <div class="block-head">
                     <h2>A new tab page that's ready when you are</h2>
@@ -3026,6 +3117,22 @@
                     </details>
                     <details>
                         <summary>
+                            Can I search YouTube, Wikipedia or another site
+                            directly?
+                        </summary>
+                        <p>
+                            Yes. Type the site&#x27;s key, a space and your
+                            search: yt for YouTube, ytm for YouTube Music, wiki
+                            for Wikipedia, gh for GitHub, mdn for MDN, npm for
+                            npm and maps for Google Maps. You can add your own
+                            in settings with a name, a key and a results address
+                            containing {q}. Your open tabs still come first: the
+                            site&#x27;s row only goes on top when nothing you
+                            have open matches.
+                        </p>
+                    </details>
+                    <details>
+                        <summary>
                             Does Tabdrift send my tabs, history or searches
                             anywhere?
                         </summary>
@@ -3525,6 +3632,27 @@
                     return null;
                 };
 
+                // Search providers, as in the extension: key, space, query, at the start only.
+                const PROVIDERS = [
+                    { name: "YouTube", key: "yt", url: "https://www.youtube.com/results?search_query=" },
+                    { name: "YouTube Music", key: "ytm", url: "https://music.youtube.com/search?q=" },
+                    { name: "Wikipedia", key: "wiki", url: "https://en.wikipedia.org/w/index.php?search=" },
+                    { name: "GitHub", key: "gh", url: "https://github.com/search?q=" },
+                    { name: "MDN", key: "mdn", url: "https://developer.mozilla.org/en-US/search?q=" },
+                    { name: "npm", key: "npm", url: "https://www.npmjs.com/search?q=" },
+                    { name: "Google Maps", key: "maps", url: "https://www.google.com/maps/search/" },
+                ];
+
+                const parseProviderKey = (text) => {
+                    const m = text.trim().match(/^(\S+)\s+([\s\S]+)$/);
+                    if (!m) {
+                        return null;
+                    }
+                    const provider = PROVIDERS.find((p) => p.key === m[1].toLowerCase());
+                    const query = m[2].trim();
+                    return provider && query ? { provider, query } : null;
+                };
+
                 const FILE_ENDINGS = [
                     "md",
                     "ts",
@@ -3597,11 +3725,29 @@
                             first: true,
                         };
                     }
-                    const address = parseAddress(q);
                     const nothingElse =
                         filtered.length === 0 &&
                         utils.length === 0 &&
                         filteredMarks.length === 0;
+                    const provided = parseProviderKey(q);
+                    if (provided) {
+                        // Tabs still win: the site's row goes on top only when nothing else matched.
+                        return {
+                            rows: [
+                                {
+                                    type: "search",
+                                    title: provided.query,
+                                    sub: `Search ${provided.provider.name}`,
+                                    badge: provided.provider.key,
+                                    engine: provided.provider,
+                                    url: provided.provider.url + encodeURIComponent(provided.query),
+                                },
+                                plain,
+                            ],
+                            first: nothingElse,
+                        };
+                    }
+                    const address = parseAddress(q);
                     if (address) {
                         const go = {
                             type: "go",
@@ -4058,7 +4204,7 @@
                         empty.textContent = input.value.trim()
                             ? "No matching tabs, marks or history"
                             : scope === "all"
-                              ? "Search tabs or the web. Add g, b, d or n to pick an engine"
+                              ? "Search tabs or the web. Add g, b, d or n to pick an engine, or yt or wiki to search a site"
                               : "Type to filter";
                         results.appendChild(empty);
                         updateHint();

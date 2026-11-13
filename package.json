@@ -20,7 +20,8 @@
         "compile": "tsc --noEmit",
         "lint": "biome check .",
         "lint:fix": "biome check --write .",
-        "version": "node scripts/sync-version.mjs && git add wxt.config.ts"
+        "version": "node scripts/sync-version.mjs && git add wxt.config.ts",
+        "test": "vitest run"
     },
     "dependencies": {
         "@paper-design/shaders": "0.0.81"
@@ -28,6 +29,7 @@
     "devDependencies": {
         "@biomejs/biome": "^2.5.13",
         "typescript": "^5.6.0",
+        "vitest": "^3.2.7",
         "wxt": "^0.21.4"
     }
 }
