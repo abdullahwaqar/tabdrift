@@ -134,6 +134,19 @@ pages and ranked with the same fuzzy matcher, favouring pages you visit
 often and recently. Pick one and it opens in a new tab. This needs the
 `history` permission; searches never leave your machine.
 
+### How the combined list is ordered
+
+With no scope picked, Tabdrift is a fuzzy finder over everything at once,
+not only a tab switcher. Tabs, marks and history each form a section, and
+the section with the best match goes on top. Tabs get a small head start,
+since switching to an open tab beats reopening a page, but a history page
+that clearly matches better than any tab leads the list. When marks or
+history also match, only the strong tab matches show (up to six); the header
+says how many are tucked away, and `%` lists them all.
+
+Matching is forgiving: dropping vowels or letters works (`gmal`, `linkdn`,
+`stckovr`), and loose matches rank under clean ones instead of disappearing.
+
 ### History by site
 
 Some sites (dashboards, admin panels) fill your history with dozens of long
@@ -175,15 +188,16 @@ Tabdrift can stand in for the address bar. Open the overlay, type or paste,
 press Enter. No Ctrl+T, Ctrl+L first.
 
 - **Pick an engine with one letter**, before or after the search:
-  `g` Google, `b` Bing, `d` DuckDuckGo. `g esp32 pinout` and
+  `g` Google, `b` Bing, `d` DuckDuckGo, `n` DuckDuckGo without AI
+  ([noai.duckduckgo.com](https://noai.duckduckgo.com)). `g esp32 pinout` and
   `esp32 pinout g` both search Google. The row goes to the top and is
   highlighted, so Enter runs it. The full text searched with your default
   engine sits right below it, for when the letter is part of the search
   (`vitamin d`).
 - **Plain searches** use the default engine, set in settings (Google out of
   the box). When nothing in your tabs matches, the search row is on top and
-  Enter runs it. When tabs do match, tabs stay first and the search row sits
-  under them, so the tab switcher works as before.
+  Enter runs it. When something does match, the search row sits under your
+  tabs and marks, just above history.
 - **Addresses**: a full link (`https://...`, `www....`) gets an "open" row
   on top. Bare addresses like `github.com/user/repo`, `docs.rs`,
   `localhost:5173` or `192.168.1.1` work too. File names like `README.md`

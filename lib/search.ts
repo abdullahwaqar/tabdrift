@@ -4,7 +4,7 @@
  */
 import { parseUrlInput } from "./utils";
 
-export type SearchEngineId = "google" | "bing" | "duckduckgo";
+export type SearchEngineId = "google" | "bing" | "duckduckgo" | "duckduckgo-noai";
 
 export interface SearchEngine {
     id: SearchEngineId;
@@ -18,6 +18,13 @@ export const SEARCH_ENGINES: SearchEngine[] = [
     { id: "google", name: "Google", key: "g", searchUrl: (q) => `https://www.google.com/search?q=${encodeURIComponent(q)}` },
     { id: "bing", name: "Bing", key: "b", searchUrl: (q) => `https://www.bing.com/search?q=${encodeURIComponent(q)}` },
     { id: "duckduckgo", name: "DuckDuckGo", key: "d", searchUrl: (q) => `https://duckduckgo.com/?q=${encodeURIComponent(q)}` },
+    // DuckDuckGo with Search Assist, AI answers and AI images switched off.
+    {
+        id: "duckduckgo-noai",
+        name: "DuckDuckGo (no AI)",
+        key: "n",
+        searchUrl: (q) => `https://noai.duckduckgo.com/?q=${encodeURIComponent(q)}`,
+    },
 ];
 
 export const DEFAULT_ENGINE_ID: SearchEngineId = "google";

@@ -244,7 +244,7 @@ const REDIRECTORS: Redirector[] = [
     { host: /^l\.instagram\.com$/, param: "u" },
     { host: /(^|\.)linkedin\.com$/, path: /^\/(redir\/redirect|safety\/go)\/?$/, param: "url" },
     { host: /(^|\.)youtube\.com$/, path: /^\/redirect$/, param: "q" },
-    { host: /^duckduckgo\.com$/, path: /^\/l\/?$/, param: "uddg" },
+    { host: /^(noai\.)?duckduckgo\.com$/, path: /^\/l\/?$/, param: "uddg" },
     { host: /\.safelinks\.protection\.outlook\.com$/, param: "url" },
     { host: /^slack-redir\.net$/, path: /^\/link$/, param: "url" },
     { host: /^out\.reddit\.com$/, param: "url" },

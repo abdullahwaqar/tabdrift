@@ -54,6 +54,11 @@ const SCORE_MATCH_CAPITAL = 0.7;
 const SCORE_MATCH_DOT = 0.6;
 /** Extra for a word that is the whole field, e.g. "docs.rs" typed in full. */
 const SCORE_EXACT_FIELD = 1;
+/**
+ * Cost per scattered piece of a match (see scatterPenalty). Loose matches like "gmal" for Gmail
+ * still show up, they just rank under clean ones.
+ */
+const SCORE_SCATTER = 0.5;
 
 /** Long addresses are cut before scoring. The interesting part (site and path) is at the front. */
 const MAX_HAYSTACK = 256;
@@ -347,18 +352,23 @@ function fuzzyField(nd: string, f: Field, caseSensitive: boolean, strict: boolea
         return null;
     }
     const positions = backtrack(D, M, n, w, lo);
-    if (strict && tooScattered(positions, f.fz, n)) {
+    if (!strict) {
+        return { score, positions };
+    }
+    const penalty = scatterPenalty(positions, f.fz);
+    if (penalty > Math.ceil(n * 0.75)) {
         return null;
     }
-    return { score, positions };
+    return { score: score - penalty * SCORE_SCATTER, positions };
 }
 
 /**
- * fzy matches any subsequence, so "rust" finds "Pull requests" (r, u, st).
- * A match that breaks into pieces is kept only if most pieces start a word:
- * "ghtd" for "GitHub ... tabdrift" stays, "rust" in "requests" goes.
+ * fzy matches any subsequence, so on its own "rust" finds "Pull requests" (r, u, st) as readily as
+ * "The Rust Book". Pieces of a match that start in the middle of a word count against it, a lone
+ * letter there most of all. Abbreviations that drop vowels ("gmal", "linkdn", "wthr") stay in the
+ * list at a lower score. Only matches that are mostly stray letters are dropped.
  */
-function tooScattered(positions: number[], text: string, n: number): boolean {
+function scatterPenalty(positions: number[], text: string): number {
     let chunks = 0;
     let penalty = 0;
     for (let i = 0; i < positions.length; i++) {
@@ -373,7 +383,7 @@ function tooScattered(positions: number[], text: string, n: number): boolean {
             penalty += lone ? 2 : 1;
         }
     }
-    return chunks > 1 && penalty > Math.floor(n / 3);
+    return chunks > 1 ? penalty : 0;
 }
 
 /** Walks back through the score tables (columns lo..lo+w-1) to find which characters made the best score. */

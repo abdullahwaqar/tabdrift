@@ -113,13 +113,23 @@ const SEARCH_DEBOUNCE_MS = 0;
 const DEEP_SEARCH_DELAY_MS = 80;
 /** Cached page keys for "is this open in a tab / marked" checks, cleared when it grows past this. */
 const KEY_CACHE_LIMIT = 5000;
-const HISTORY_LIMIT = 6;
+const HISTORY_LIMIT = 8;
 const HISTORY_SCOPED_LIMIT = 40;
 const MARK_LIMIT = 5;
 const MARK_SCOPED_LIMIT = 200;
 /** You marked it on purpose, so it beats a page that merely matches as well. */
 const MARK_BOOST = 1.5;
 const EXPAND_LIMIT = 10;
+/**
+ * The combined list is a fuzzy finder over tabs, marks and history, not just a tab switcher.
+ * Tabs get this much head start when deciding which section goes first, since switching to a
+ * tab beats reopening a page, but a clearly better history or mark match still wins the top.
+ */
+const TAB_LEAD_MARGIN = 0.75;
+/** With marks or history also matching, at most this many tabs show. The Tabs scope (%) lists them all. */
+const MIXED_TAB_LIMIT = 6;
+/** A tab scoring this far under the best match anywhere is noise next to it, so it waits in the Tabs scope. */
+const WEAK_TAB_GAP = 3;
 const HISTORY_POOL_PLAIN = 25;
 const HISTORY_POOL_GROUPED = 150;
 const PAGE_JUMP = 8;
@@ -316,6 +326,11 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
     let hintEl: HTMLSpanElement | null = null;
 
     let rowEls: HTMLElement[] = [];
+    /**
+     * Where the mouse last was, in screen pixels. Firefox sends mouse events when the list scrolls or is
+     * rebuilt under a cursor that never moved, so a row only takes the highlight when this changes.
+     */
+    let lastPointer: { x: number; y: number } | null = null;
     let overlayActive = false;
     let bodyWasInert = false;
     let refocusTimes: number[] = [];
@@ -392,6 +407,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         input.addEventListener("paste", () => setTimeout(maybeQuickCopy, 0));
         scrim.addEventListener("click", hideOverlay);
         resultsEl.addEventListener("pointermove", onDragMove);
+        resultsEl.addEventListener("mousemove", onResultsMouseMove);
         resultsEl.addEventListener("pointerup", (e) => endDrag(e, true));
         resultsEl.addEventListener("pointercancel", (e) => endDrag(e, false));
         resultsEl.addEventListener("lostpointercapture", (e) => endDrag(e, false));
@@ -528,6 +544,10 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         shadow?.getElementById("scrim")?.classList.add("open");
         cardEl?.classList.add("open");
 
+        // The cursor may already be resting over where the list appears. Wait for it to move.
+        lastPointer = null;
+        resultsEl?.classList.add("keys");
+
         // Take focus straight away, before the tab list has even loaded.
         scope = "all";
         if (input) {
@@ -641,17 +661,48 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         return ranked.map((r) => r.item);
     }
 
-    /**
-     * Marks go above your tabs when their best match is better, so "search google" lands on the marked
-     * Search Console instead of whatever Google tab happens to be open.
-     */
-    function marksLead(): boolean {
-        const topMark = markResults[0];
-        if (!topMark || !input?.value.trim()) {
-            return false;
+    function topScore(item: object | undefined): number {
+        return item ? (hits.get(item)?.score ?? Number.NEGATIVE_INFINITY) : Number.NEGATIVE_INFINITY;
+    }
+
+    function topHistoryScore(): number {
+        // Site rows are copies made after ranking, so they carry their score with them.
+        let best = Number.NEGATIVE_INFINITY;
+        for (const h of historyResults) {
+            if (h.score !== undefined && h.score > best) {
+                best = h.score;
+            }
         }
-        const topTab = filtered[0];
-        return !topTab || (hits.get(topMark)?.score ?? 0) > (hits.get(topTab)?.score ?? 0);
+        return best;
+    }
+
+    /**
+     * Tabs shown in the combined list. Every tab when nothing else matched. Otherwise the strong ones,
+     * so a dozen loose tab matches can't push a near-perfect history hit off the bottom.
+     */
+    function mixedTabs(): TabInfo[] {
+        if (!input?.value.trim() || (markResults.length === 0 && historyResults.length === 0)) {
+            return filtered;
+        }
+        const best = Math.max(topScore(filtered[0]), topScore(markResults[0]), topHistoryScore());
+        const strong = filtered.filter((t, i) => i === 0 || topScore(t) >= best - WEAK_TAB_GAP);
+        return strong.slice(0, MIXED_TAB_LIMIT);
+    }
+
+    /**
+     * Which sections of the combined list come first, best match on top. Tabs keep a small head start;
+     * ties keep the order tabs, marks, history.
+     */
+    function sectionOrder(): Array<"tabs" | "marks" | "history"> {
+        const order: Array<{ id: "tabs" | "marks" | "history"; score: number }> = [
+            { id: "tabs", score: filtered.length > 0 ? topScore(filtered[0]) + TAB_LEAD_MARGIN : Number.NEGATIVE_INFINITY },
+            { id: "marks", score: topScore(markResults[0]) },
+            { id: "history", score: topHistoryScore() },
+        ];
+        if (!input?.value.trim()) {
+            return ["tabs", "marks", "history"];
+        }
+        return order.sort((a, b) => b.score - a.score).map((o) => o.id);
     }
 
     function rankTabs(q: string): TabInfo[] {
@@ -723,7 +774,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         return extras;
     }
 
-    function computeActions(q: string): ActionRow[] {
+    function computeActions(q: string, matched: TabInfo[] = filtered): ActionRow[] {
         if (!q) {
             const extras = findDuplicateTabs();
             if (extras.length === 0) {
@@ -740,11 +791,11 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             ];
         }
 
-        const closable = filtered.filter((t) => !t.current && !t.pinned);
+        const closable = matched.filter((t) => !t.current && !t.pinned);
         if (closable.length < 2) {
             return [];
         }
-        const skipped = filtered.length - closable.length;
+        const skipped = matched.length - closable.length;
         return [
             {
                 id: "close-matching",
@@ -894,9 +945,20 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
                 }
             }
             const limit = scoped ? HISTORY_SCOPED_LIMIT : HISTORY_LIMIT;
+            const before = getRows();
+            const wasDefault = selectedIndex === defaultIndex();
+            const held = before[selectedIndex];
             historyResults = grouped ? collapseToSites(pages, limit) : pages.slice(0, limit);
             if (scoped) {
                 selectedIndex = Math.min(selectedIndex, Math.max(0, getRows().length - 1));
+            } else if (wasDefault) {
+                // Still on the top pick: follow it, even if a strong history match now leads the list.
+                selectedIndex = defaultIndex();
+            } else {
+                // You picked a row yourself. Sections may have moved around it, so find it again.
+                const rows = getRows();
+                const again = held ? rows.findIndex((r) => r.kind === held.kind && r.data === held.data) : -1;
+                selectedIndex = again !== -1 ? again : Math.min(selectedIndex, Math.max(0, rows.length - 1));
             }
             renderResults();
         };
@@ -1461,16 +1523,27 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             return commandRows.map((data): ResultRow => ({ kind: "cmd", data }));
         }
         const web = webRows.map((data): ResultRow => ({ kind: "web", data }));
-        return [
-            ...(webFirst ? web : []),
-            ...utilities.map((data): ResultRow => ({ kind: "util", data })),
-            ...(marksLead() ? markRows : []),
-            ...actions.map((data): ResultRow => ({ kind: "action", data })),
-            ...filtered.map((data): ResultRow => ({ kind: "tab", data })),
-            ...(marksLead() ? [] : markRows),
-            ...(webFirst ? [] : web),
-            ...historyRows(),
-        ];
+        const shownTabs = mixedTabs();
+        // "Close all matching" only ever closes tabs you can see in the list.
+        const shownActions = shownTabs.length < filtered.length ? computeActions(input?.value.trim() ?? "", shownTabs) : actions;
+        const sections: Record<"tabs" | "marks" | "history", ResultRow[]> = {
+            tabs: [...shownActions.map((data): ResultRow => ({ kind: "action", data })), ...shownTabs.map((data): ResultRow => ({ kind: "tab", data }))],
+            marks: markRows,
+            history: historyRows(),
+        };
+        const order = sectionOrder();
+        const rows: ResultRow[] = [...(webFirst ? web : []), ...utilities.map((data): ResultRow => ({ kind: "util", data }))];
+        order.forEach((id, i) => {
+            // The search row sits just above history, or just below it when history leads the list.
+            if (!webFirst && id === "history" && i > 0) {
+                rows.push(...web);
+            }
+            rows.push(...sections[id]);
+            if (!webFirst && id === "history" && i === 0) {
+                rows.push(...web);
+            }
+        });
+        return rows;
     }
 
     function sectionTitle(kind: ResultRow["kind"]): string | null {
@@ -1501,9 +1574,14 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (!input?.value.trim()) {
             return `Recent tabs · ${filtered.length}`;
         }
-        // Tabs only need a label when something else sits above them.
-        const above = scope === "tabs" ? actions.length > 0 : utilities.length > 0 || actions.length > 0 || (webFirst && webRows.length > 0) || marksLead();
-        return above ? `Open tabs · ${filtered.length}` : null;
+        if (scope === "tabs") {
+            return actions.length > 0 ? `Open tabs · ${filtered.length}` : null;
+        }
+        const shown = mixedTabs().length;
+        const count = shown < filtered.length ? `${shown} of ${filtered.length} \u00b7 % for all` : `${filtered.length}`;
+        // Tabs only need a label when something else sits above them, or some are tucked away.
+        const above = utilities.length > 0 || actions.length > 0 || (webFirst && webRows.length > 0) || sectionOrder()[0] !== "tabs" || shown < filtered.length;
+        return above ? `Open tabs · ${count}` : null;
     }
 
     function closeKeyLabel(): string {
@@ -1827,6 +1905,27 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         renderPreview(row);
     }
 
+    /**
+     * Hover highlighting, driven by real mouse movement only. Arrow keys scroll the list and typing
+     * rebuilds it, and either can slide a new row under a cursor that is standing still. That must
+     * not steal the highlight back from the keyboard.
+     */
+    function onResultsMouseMove(e: MouseEvent) {
+        const first = lastPointer === null;
+        const moved = first || lastPointer?.x !== e.screenX || lastPointer?.y !== e.screenY;
+        lastPointer = { x: e.screenX, y: e.screenY };
+        // The first event after opening is often Firefox reporting where the cursor already was.
+        if (first || !moved || drag?.active) {
+            return;
+        }
+        resultsEl?.classList.remove("keys");
+        const rowEl = e.target instanceof Element ? e.target.closest(".row") : null;
+        const index = rowEl ? rowEls.indexOf(rowEl as HTMLElement) : -1;
+        if (index !== -1) {
+            selectRow(index);
+        }
+    }
+
     function moveSelection(step: number) {
         const count = getRows().length;
         if (count === 0) {
@@ -1859,7 +1958,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (scope === "commands") {
             return "No matching commands";
         }
-        return typed ? "No matching tabs, marks or history" : "Search tabs or the web. Put g, b or d before or after a search to pick the engine";
+        return typed ? "No matching tabs, marks or history" : "Search tabs or the web. Put g, b, d or n before or after a search to pick the engine";
     }
 
     function renderResults() {
@@ -1932,12 +2031,6 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             }
 
             el.addEventListener("click", (e) => activateRow(row, e.shiftKey, isFlipKey(e)));
-            const capturedIndex = i;
-            el.addEventListener("mouseenter", () => {
-                if (!drag?.active) {
-                    selectRow(capturedIndex);
-                }
-            });
 
             resultsEl?.appendChild(el);
             rowEls.push(el);
@@ -2615,6 +2708,8 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         if (e.isComposing) {
             return;
         }
+        // The keyboard is driving now: a resting cursor shouldn't paint a second highlight.
+        resultsEl?.classList.add("keys");
         if (drag?.active) {
             // Keys would move the list out from under the pointer. Esc drops the drag.
             e.preventDefault();
@@ -3043,6 +3138,7 @@ const STYLES = `
     transition: background 0.08s ease;
   }
   .row:hover { background: rgba(255, 255, 255, 0.05); }
+  #results.keys .row:not(.selected):hover { background: none; }
   .row.child { padding-left: 42px; }
   .row.child .title { font-size: 13px; }
   .row.selected { background: color-mix(in srgb, var(--accent) 28%, transparent); }
