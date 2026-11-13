@@ -74,7 +74,7 @@
                         "applicationSubCategory": "Browser extension",
                         "operatingSystem": "Windows, macOS, Linux (Firefox)",
                         "browserRequirements": "Requires Firefox 109 or later",
-                        "description": "A free, open source, keyboard-first tab switcher for Firefox. Press a shortcut to jump to an open tab, a page you marked, or a page from history, search Google, Bing or DuckDuckGo, or open an address. Replaces the new tab page with a clock, search box, shortcuts, weather, a to-do list and a focus timer over an animated grain gradient. Paste an email or link to copy its domain or a tracker-free URL, and close tabs from the same box.",
+                        "description": "A free, open source, keyboard-first tab switcher for Firefox. Press a shortcut to jump to an open tab, a page you marked, or a page from history, search Google, Bing or DuckDuckGo (with or without AI), or open an address. Replaces the new tab page with a clock, search box, shortcuts, weather, a to-do list and a focus timer over an animated grain gradient. Paste an email or link to copy its domain or a tracker-free URL, and close tabs from the same box.",
                         "url": "https://abdullahwaqar.com/tabdrift",
                         "downloadUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
                         "installUrl": "https://addons.mozilla.org/firefox/addon/tabdrift/",
@@ -105,7 +105,7 @@
                             "Tab and window commands: pin, mute, unload, sort by site, merge windows, copy all links",
                             "Wide layout with a preview pane",
                             "History search grouped by site",
-                            "Web search with Google, Bing or DuckDuckGo using a one-letter key",
+                            "Web search with Google, Bing, DuckDuckGo or no-AI DuckDuckGo using a one-letter key",
                             "Open typed addresses like github.com or localhost:5173",
                             "A new tab page that opens with the cursor in its search box",
                             "Shortcuts, weather, a to-do list and a focus timer on the new tab page",
@@ -151,7 +151,7 @@
                                 "name": "Can Tabdrift replace the Firefox address bar?",
                                 "acceptedAnswer": {
                                     "@type": "Answer",
-                                    "text": "For most things, yes. Type a search and press Enter to search Google, Bing or DuckDuckGo, or type an address like github.com to open it. Put g, b or d before or after a search to pick the engine. Your open tabs and history show up in the same list, so one box covers switching, reopening and searching."
+                                    "text": "For most things, yes. Type a search and press Enter to search Google, Bing or DuckDuckGo, or type an address like github.com to open it. Put g, b, d or n before or after a search to pick the engine. Your open tabs and history show up in the same list, so one box covers switching, reopening and searching."
                                 }
                             },
                             {
@@ -175,7 +175,7 @@
                                 "name": "Which search engines does it support?",
                                 "acceptedAnswer": {
                                     "@type": "Answer",
-                                    "text": "Google, Bing and DuckDuckGo. Pick your default in settings. The keys g, b and d choose one for a single search, typed either before or after the search, like \"g esp32 pinout\" or \"esp32 pinout d\"."
+                                    "text": "Google, Bing, DuckDuckGo and DuckDuckGo without AI (noai.duckduckgo.com). Pick your default in settings. The keys g, b, d and n choose one for a single search, typed either before or after the search, like \"g esp32 pinout\" or \"esp32 pinout d\"."
                                 }
                             },
                             {
@@ -1725,8 +1725,8 @@
                             decoding="async"
                         />
                         <figcaption>
-                            Put g, b or d before or after a search to pick
-                            Google, Bing or DuckDuckGo.
+                            Put g, b, d or n before or after a search to pick
+                            Google, Bing, DuckDuckGo or no-AI DuckDuckGo.
                         </figcaption>
                     </figure>
                     <figure
@@ -2148,8 +2148,10 @@
                         <div>
                             <h3>Not open? Check history, then the web</h3>
                             <p>
-                                Close matches from your history show up under
-                                your tabs, one row per site. If nothing fits at
+                                Close matches from your history show up in the
+                                same list, one row per site. A page that matches
+                                better than any open tab goes to the top, and
+                                loose spellings like gmal still find Gmail. If nothing fits at
                                 all, the top row is a web search, so Enter takes
                                 you to the results.
                             </p>
@@ -2266,9 +2268,10 @@
                     <div class="util-card">
                         <h3>One letter picks the engine</h3>
                         <p>
-                            Put <code>g</code>, <code>b</code> or
-                            <code>d</code> before or after a search for Google,
-                            Bing or DuckDuckGo. That row jumps to the top, so
+                            Put <code>g</code>, <code>b</code>, <code>d</code>
+                            or <code>n</code> before or after a search for
+                            Google, Bing, DuckDuckGo or DuckDuckGo without AI.
+                            That row jumps to the top, so
                             Enter runs it. Plain searches use your default.
                         </p>
                         <div class="code-block">
@@ -2983,7 +2986,7 @@
                         <p>
                             For most things, yes. Type a search and press Enter
                             to search Google, Bing or DuckDuckGo, or type an
-                            address like github.com to open it. Put g, b or d
+                            address like github.com to open it. Put g, b, d or n
                             before or after a search to pick the engine. Your
                             open tabs and history show up in the same list, so
                             one box covers switching, reopening and searching.
@@ -3013,8 +3016,9 @@
                     <details>
                         <summary>Which search engines does it support?</summary>
                         <p>
-                            Google, Bing and DuckDuckGo. Pick your default in
-                            settings. The keys g, b and d choose one for a
+                            Google, Bing, DuckDuckGo and DuckDuckGo without AI
+                            (noai.duckduckgo.com). Pick your default in
+                            settings. The keys g, b, d and n choose one for a
                             single search, typed either before or after the
                             search, like &quot;g esp32 pinout&quot; or
                             &quot;esp32 pinout d&quot;.
@@ -3489,6 +3493,12 @@
                         name: "DuckDuckGo",
                         key: "d",
                         url: "https://duckduckgo.com/?q=",
+                    },
+                    {
+                        id: "duckduckgo-noai",
+                        name: "DuckDuckGo (no AI)",
+                        key: "n",
+                        url: "https://noai.duckduckgo.com/?q=",
                     },
                 ];
                 let defaultEngine = ENGINES[0];
@@ -4048,7 +4058,7 @@
                         empty.textContent = input.value.trim()
                             ? "No matching tabs, marks or history"
                             : scope === "all"
-                              ? "Search tabs or the web. Add g, b or d to pick an engine"
+                              ? "Search tabs or the web. Add g, b, d or n to pick an engine"
                               : "Type to filter";
                         results.appendChild(empty);
                         updateHint();
