@@ -11,6 +11,7 @@
         "url": "https://github.com/abdullahwaqar/tabdrift.git"
     },
     "scripts": {
+        "postinstall": "wxt prepare",
         "dev": "wxt",
         "dev:firefox": "wxt -b firefox",
         "build": "wxt build",
@@ -21,7 +22,8 @@
         "lint": "biome check .",
         "lint:fix": "biome check --write .",
         "version": "node scripts/sync-version.mjs && git add wxt.config.ts",
-        "test": "vitest run"
+        "test": "vitest run",
+        "pretest": "wxt prepare"
     },
     "dependencies": {
         "@paper-design/shaders": "0.0.81"

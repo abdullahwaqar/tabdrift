@@ -8,7 +8,7 @@ import { activeProviders } from "./providers";
 import type { TabSearchSettings } from "./settings";
 import { getSettings, onSettingsChanged } from "./settings";
 import type { UtilAction } from "./utils";
-import { buildUtilities, cleanUrl, duplicateKey, groupBySite } from "./utils";
+import { buildUtilities, cleanUrl, duplicateKey, findDuplicates, groupBySite } from "./utils";
 import type { WebRow } from "./web-rows";
 import { planWebRows as planWeb } from "./web-rows";
 
@@ -25,6 +25,9 @@ interface TabInfo {
     audible?: boolean;
     muted?: boolean;
     discarded?: boolean;
+    /** Firefox container. Tabs in different containers are never duplicates of each other. */
+    cookieStoreId?: string;
+    incognito?: boolean;
     /** The tab this overlay is open in. */
     current?: boolean;
 }
@@ -64,6 +67,8 @@ interface CommandRow {
     keywords?: string;
     /** Needs a second Enter. */
     confirm?: boolean;
+    /** Tabs the command will close, listed in the preview and on the armed row. */
+    tabs?: TabInfo[];
     run: (stay: boolean) => Promise<void> | void;
 }
 
@@ -739,31 +744,12 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         return scope === "arrange" && !detail;
     }
 
-    /** Tabs showing a page that is already open elsewhere. One copy of each page is kept. */
+    /**
+     * Tabs showing exactly the same page as another tab in the same container. The #fragment counts
+     * (single-page apps route on it) and so does the container. One copy of each page is kept.
+     */
     function findDuplicateTabs(): TabInfo[] {
-        const groups = new Map<string, TabInfo[]>();
-        for (const tab of tabs) {
-            if (!tab.url) {
-                continue;
-            }
-            const key = duplicateKey(tab.url);
-            groups.set(key, [...(groups.get(key) ?? []), tab]);
-        }
-
-        const extras: TabInfo[] = [];
-        for (const group of groups.values()) {
-            if (group.length < 2) {
-                continue;
-            }
-            const byRecent = [...group].sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
-            const keeper = byRecent.find((t) => t.current) ?? byRecent.find((t) => t.pinned) ?? byRecent.find((t) => t.active) ?? byRecent[0];
-            for (const tab of group) {
-                if (tab !== keeper && !tab.pinned && !tab.current) {
-                    extras.push(tab);
-                }
-            }
-        }
-        return extras;
+        return findDuplicates(tabs);
     }
 
     function computeActions(q: string, matched: TabInfo[] = filtered): ActionRow[] {
@@ -776,9 +762,9 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
                 {
                     id: "close-duplicates",
                     label: `Close ${plural(extras.length, "duplicate tab")}`,
-                    sub: "Keeps one copy of each page",
+                    sub: "Keeps one copy of each page. Press Enter twice",
                     tabs: extras,
-                    confirm: false,
+                    confirm: true,
                 },
             ];
         }
@@ -1015,7 +1001,19 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             return;
         }
         const keep = selectedIndex;
-        const marked = await toggleMark(page);
+        let outcome: Awaited<ReturnType<typeof toggleMark>>;
+        try {
+            outcome = await toggleMark(page);
+        } catch (err) {
+            console.warn("[tabdrift] mark failed:", err);
+            flashHint("Couldn't save the mark");
+            return;
+        }
+        if (outcome === "full") {
+            flashHint("Marks are full (5,000). Remove some to add more");
+            return;
+        }
+        const marked = outcome === "marked";
         setMarks(await getMarks());
         const name = page.title || page.url;
         const short = name.length > 48 ? `${name.slice(0, 47)}\u2026` : name;
@@ -1342,9 +1340,11 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             rows.push({
                 id: "win-dupes",
                 title: `Close ${plural(dupes.length, "duplicate tab")}`,
-                sub: "Keeps one copy of each page",
+                sub: "Keeps one copy of each page. Press Enter twice",
                 icon: TRASH_ICON,
                 keywords: "duplicates dedupe clean",
+                confirm: true,
+                tabs: dupes,
                 run: () => closeTabs(dupes),
             });
         }
@@ -1735,17 +1735,24 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             iconSpan(TRASH_ICON),
             textBlock(
                 armed ? `Close ${plural(action.tabs.length, "tab")}? Press Enter again` : action.label,
-                armed ? `Undo with ${reopenKeyLabel()}` : action.sub,
+                armed ? `${tabSummary(action.tabs)} · Undo with ${reopenKeyLabel()}` : action.sub,
             ),
             badge("close"),
         ];
+    }
+
+    /** "Inbox – Gmail, Dashboard +3 more": what an armed close will take out, for layouts without the preview pane. */
+    function tabSummary(list: TabInfo[]): string {
+        const names = list.slice(0, 2).map((t) => t.title || displayUrl(t.url));
+        const more = list.length - names.length;
+        return more > 0 ? `${names.join(", ")} +${more} more` : names.join(", ");
     }
 
     function buildCommandRow(cmd: CommandRow): HTMLElement[] {
         const armed = armedId === cmd.id;
         return [
             iconSpan(cmd.icon),
-            textBlock(armed ? `${cmd.title}? Press Enter again` : cmd.title, cmd.sub, { key: cmd }),
+            textBlock(armed ? `${cmd.title}? Press Enter again` : cmd.title, armed && cmd.tabs ? tabSummary(cmd.tabs) : cmd.sub, { key: cmd }),
             badge(cmd.confirm ? "confirm" : "run"),
         ];
     }
@@ -2169,6 +2176,13 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             add("div", "p-kind", detail?.tabId !== undefined ? "Tab action" : "Command");
             add("div", "p-title", row.data.title);
             add("div", "p-sub", row.data.sub);
+            if (row.data.tabs) {
+                list(
+                    "Tabs that will close",
+                    row.data.tabs.slice(0, 10).map((t) => t.title || displayUrl(t.url)),
+                    Math.max(0, row.data.tabs.length - 10),
+                );
+            }
         }
     }
 
@@ -2185,7 +2199,7 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
         } else if (row.kind === "tab") {
             await switchToTab(row.data.id);
         } else if (row.kind === "mark") {
-            void noteOpened(row.data.key);
+            noteOpened(row.data.key).catch(() => {});
             await openLink(row.data.url, row.data.title, stay);
         } else {
             await openHistoryEntry(row.data, exact, stay);
@@ -2742,6 +2756,10 @@ export function mountPalette(mode: PaletteMode, origin: PaletteOrigin = {}, hook
             }
         } else if (e.key === "Enter") {
             e.preventDefault();
+            // A held Enter repeats. The first press arms a destructive row, so a repeat must never confirm it.
+            if (e.repeat) {
+                return;
+            }
             const rows = getRows();
             const target = rows[selectedIndex];
             if (target) {

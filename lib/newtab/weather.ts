@@ -1,4 +1,5 @@
 import { h } from "./dom";
+import { hasLocationConsent, onLocationConsentChanged } from "./location-consent";
 import type { NewTabSettings, Place, TemperatureUnit } from "./settings";
 
 const CACHE_KEY = "local:tabdriftWeather";
@@ -6,6 +7,20 @@ const CACHE_MS = 30 * 60 * 1000;
 const RETRY_MS = 5 * 60 * 1000;
 const GEOCODE_URL = "https://geocoding-api.open-meteo.com/v1/search";
 const FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
+
+/** Thrown instead of making a request when you haven't allowed sending places to Open-Meteo. */
+export class NoConsentError extends Error {
+    constructor() {
+        super("Sending places to Open-Meteo isn't allowed");
+        this.name = "NoConsentError";
+    }
+}
+
+async function requireConsent(): Promise<void> {
+    if (!(await hasLocationConsent())) {
+        throw new NoConsentError();
+    }
+}
 
 export interface WeatherReport {
     temperature: number;
@@ -102,6 +117,8 @@ async function getJson<T>(url: URL): Promise<T> {
 }
 
 export async function fetchWeather(place: Place, unit: TemperatureUnit): Promise<WeatherReport> {
+    // Checked on every request, so revoking consent stops forecasts straight away.
+    await requireConsent();
     const url = new URL(FORECAST_URL);
     url.searchParams.set("latitude", String(place.latitude));
     url.searchParams.set("longitude", String(place.longitude));
@@ -131,6 +148,11 @@ export async function fetchWeather(place: Place, unit: TemperatureUnit): Promise
 
 /** Place search for the settings panel. */
 export async function searchPlaces(query: string, signal?: AbortSignal): Promise<Place[]> {
+    // What you type is sent too, so the search itself needs consent, not just the place you pick.
+    await requireConsent();
+    if (signal?.aborted) {
+        throw new DOMException("Aborted", "AbortError");
+    }
     const url = new URL(GEOCODE_URL);
     url.searchParams.set("name", query);
     url.searchParams.set("count", "6");
@@ -158,6 +180,8 @@ export class Weather {
     private settings: WeatherSettings;
     private refreshTimer: ReturnType<typeof setTimeout> | null = null;
     private requestId = 0;
+    /** True while consent is missing: nothing is fetched and the widget asks you to allow it. */
+    private paused = false;
     private readonly iconEl: HTMLSpanElement;
     private readonly tempEl: HTMLSpanElement;
     private readonly detailEl: HTMLSpanElement;
@@ -177,6 +201,7 @@ export class Weather {
                 void this.refresh();
             }
         });
+        onLocationConsentChanged(() => void this.refresh());
         browser.storage.onChanged.addListener((changes, area) => {
             if (area === "local" && changes[CACHE_KEY]?.newValue) {
                 this.renderFromCache(changes[CACHE_KEY].newValue as CacheEntry);
@@ -193,6 +218,9 @@ export class Weather {
 
     private renderFromCache(entry: CacheEntry) {
         const place = this.settings.place;
+        if (this.paused) {
+            return;
+        }
         if (place && entry.key === cacheKey(place, this.settings.unit)) {
             this.render(entry.report, place);
         }
@@ -224,6 +252,16 @@ export class Weather {
         const key = cacheKey(place, this.settings.unit);
         const requestId = ++this.requestId;
 
+        const allowed = await hasLocationConsent();
+        if (requestId !== this.requestId) {
+            return;
+        }
+        this.paused = !allowed;
+        if (!allowed) {
+            this.renderPaused(place);
+            return;
+        }
+
         const cached = await readCache().catch(() => null);
         if (requestId !== this.requestId) {
             return;
@@ -247,6 +285,12 @@ export class Weather {
             await browser.storage.local.set({ [CACHE_KEY]: entry });
             this.schedule(CACHE_MS);
         } catch (err) {
+            if (err instanceof NoConsentError) {
+                // Revoked between the check above and the request. Wait for consent to come back.
+                this.paused = true;
+                this.renderPaused(place);
+                return;
+            }
             console.warn("[tabdrift] weather update failed:", err);
             if (!cached || cached.key !== key) {
                 this.tempEl.textContent = "";
@@ -256,6 +300,14 @@ export class Weather {
             this.el.classList.add("stale");
             this.schedule(RETRY_MS);
         }
+    }
+
+    private renderPaused(place: Place) {
+        this.iconEl.innerHTML = "";
+        this.tempEl.textContent = "";
+        this.detailEl.textContent = `Weather for ${place.name} is paused`;
+        this.el.title = "Tabdrift needs your OK to send this place to Open-Meteo.\nClick to allow it in settings";
+        this.el.classList.add("stale");
     }
 
     private schedule(ms: number) {

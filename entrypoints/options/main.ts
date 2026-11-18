@@ -329,8 +329,9 @@ importFile.addEventListener("change", async () => {
         return;
     }
     try {
-        const added = await importMarks(await file.text());
-        flashStatus(added === 0 ? "Nothing new to import." : `Imported ${added} mark${added === 1 ? "" : "s"}.`);
+        const { added, skipped } = await importMarks(await file.text());
+        const saved = added === 0 ? "Nothing new to import." : `Imported ${added} mark${added === 1 ? "" : "s"}.`;
+        flashStatus(skipped > 0 ? `${saved} ${skipped} didn't fit: Tabdrift keeps up to 5,000 marks.` : saved);
     } catch (err) {
         flashStatus(err instanceof Error ? err.message : "Couldn't read that file.");
     }

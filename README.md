@@ -259,12 +259,14 @@ type anything. Close the ones you're done with without leaving the keyboard.
   the keys down doesn't repeat, and the small x on a row does the same with
   the mouse.
 - **Close duplicate tabs**: when the same page is open more than once, a
-  Clean up row appears above the list (arrow up, Enter). It keeps one copy
-  of each page. Tracking parameters, `#fragments` and trailing slashes are
-  ignored when comparing.
+  Clean up row appears above the list (arrow up, Enter, Enter again). It
+  keeps one copy of each page and lists the tabs it will close before you
+  confirm. Tracking parameters and trailing slashes are ignored when
+  comparing. `#fragments` are not, since apps like Gmail use them to tell
+  pages apart, and tabs in different containers are never duplicates.
 - **Close all matching tabs**: type something like a site name and the
   same row offers to close everything that matched. It asks for a second
-  Enter first.
+  Enter first, and holding Enter down never counts as that second press.
 
 Pinned tabs are never closed in bulk, and the tab you're on is never
 closed from its own overlay. Closed tabs are normal closed tabs, so
@@ -328,9 +330,12 @@ To go back to Firefox Home, pick it under Settings, Home, New tabs.
 - `topSites` for the shortcuts (same history access the palette already has).
 - `alarms` so the focus timer can end on time with no tab open.
 - `notifications`, only if you turn on timer notifications. Firefox asks first.
-- Weather comes from [Open-Meteo](https://open-meteo.com). Only the place
-  you pick is sent, after you agree in Firefox's data consent prompt.
-  Nothing else on the page talks to the network.
+- Weather comes from [Open-Meteo](https://open-meteo.com). Nothing is sent
+  until you press Allow in the weather settings and agree in Firefox's data
+  consent prompt. After that, the city search sends what you type and the
+  forecast sends the place you pick. Revoke it with Stop sharing or from
+  `about:addons`, and requests stop right away. Nothing else on the page
+  talks to the network.
 
 The gradient is [Paper Shaders](https://github.com/paper-design/shaders)
 (Apache-2.0). Text is set in

@@ -1,8 +1,9 @@
 import { h, ICONS } from "./dom";
 import { clearBackgroundImage, MAX_IMAGE_BYTES, saveBackgroundImage } from "./image-store";
+import { hasLocationConsent, onLocationConsentChanged, primeConsentSupport, requestLocationConsent, revokeLocationConsent } from "./location-consent";
 import type { BackgroundMode, GradientSettings, HourCycle, NewTabSettings, Place, TemperatureUnit } from "./settings";
 import { DEFAULT_NEWTAB_SETTINGS, GRADIENT_PRESETS, GRADIENT_SHAPES, MAX_GRADIENT_COLORS, matchingPreset } from "./settings";
-import { searchPlaces } from "./weather";
+import { NoConsentError, searchPlaces } from "./weather";
 
 export interface CustomizeHost {
     get(): NewTabSettings;
@@ -94,8 +95,10 @@ export class Customize {
     openAtWeather(opener?: HTMLElement) {
         this.open(opener);
         const field = this.el.querySelector<HTMLInputElement>(".place-input");
-        field?.scrollIntoView({ block: "center" });
-        field?.focus();
+        // Before consent the field is disabled, so land on the "Allow" button instead.
+        const target = field && !field.disabled ? field : (this.el.querySelector<HTMLElement>(".consent-btn") ?? field);
+        target?.scrollIntoView({ block: "center" });
+        target?.focus();
     }
 
     /** Brings every control up to date with the current settings (after a change from another tab). */
@@ -624,6 +627,7 @@ export class Customize {
     }
 
     private weatherControls(): HTMLElement[] {
+        primeConsentSupport();
         const id = fieldId();
         const input = h("input", {
             class: "text-input place-input",
@@ -633,10 +637,64 @@ export class Customize {
         const status = h("p", { class: "hint", attrs: { role: "status" } });
         const current = h("p", { class: "place-current" });
         let timer: ReturnType<typeof setTimeout> | null = null;
+        /** Nothing typed here leaves the browser until this is true. */
+        let allowed = false;
 
-        const pick = async (place: Place) => {
-            if (!(await this.allowLocationSharing())) {
-                status.textContent = "Weather needs your OK to send the place you pick to Open-Meteo.";
+        const consentText = h("p", { class: "hint consent-text" });
+        const consentBtn = h("button", { class: "btn consent-btn", attrs: { type: "button" } });
+        const consentRow = h("div", { class: "control weather-consent" }, consentText, consentBtn);
+
+        const clearSearch = () => {
+            if (timer) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            this.placeSearch?.abort();
+            results.textContent = "";
+        };
+
+        const applyConsent = (next: boolean) => {
+            allowed = next;
+            input.disabled = !next;
+            input.placeholder = next ? "Search for a city" : "Allow Open-Meteo first";
+            consentText.textContent = next
+                ? "City search and forecasts use open-meteo.com."
+                : "City search sends what you type to open-meteo.com, and forecasts send the place you pick. Nothing is sent until you allow it.";
+            consentBtn.textContent = next ? "Stop sharing" : "Allow";
+            if (!next) {
+                clearSearch();
+                input.value = "";
+            }
+        };
+        const checkConsent = () => {
+            void hasLocationConsent().then(applyConsent);
+        };
+        applyConsent(false);
+        checkConsent();
+        onLocationConsentChanged(checkConsent);
+
+        consentBtn.addEventListener("click", () => {
+            status.textContent = "";
+            if (allowed) {
+                void revokeLocationConsent().then(() => {
+                    applyConsent(false);
+                    status.textContent = "Stopped. Weather stays hidden until you allow it again.";
+                });
+                return;
+            }
+            // Straight from the click, with nothing awaited first, so Firefox will show its prompt.
+            void requestLocationConsent().then((granted) => {
+                applyConsent(granted);
+                if (granted) {
+                    input.focus();
+                } else {
+                    status.textContent = "Not allowed, so nothing was sent to Open-Meteo.";
+                }
+            });
+        });
+
+        const pick = (place: Place) => {
+            if (!allowed) {
                 return;
             }
             input.value = "";
@@ -647,6 +705,9 @@ export class Customize {
 
         const runSearch = async (query: string) => {
             this.placeSearch?.abort();
+            if (!allowed) {
+                return;
+            }
             const controller = new AbortController();
             this.placeSearch = controller;
             try {
@@ -663,11 +724,11 @@ export class Customize {
                         h("span", { class: "place-name", text: place.name }),
                         h("span", { class: "place-detail", text: place.detail }),
                     );
-                    option.addEventListener("click", () => void pick(place));
+                    option.addEventListener("click", () => pick(place));
                     option.addEventListener("keydown", (e) => {
                         if (e.key === "Enter" || e.key === " ") {
                             e.preventDefault();
-                            void pick(place);
+                            pick(place);
                         } else if (e.key === "ArrowDown") {
                             e.preventDefault();
                             (option.nextElementSibling as HTMLElement | null)?.focus();
@@ -679,21 +740,22 @@ export class Customize {
                     results.append(option);
                 }
             } catch (err) {
-                if (!controller.signal.aborted) {
-                    console.warn("[tabdrift] place search failed:", err);
-                    status.textContent = "Couldn't reach Open-Meteo. Check your connection and try again.";
+                if (controller.signal.aborted) {
+                    return;
                 }
+                if (err instanceof NoConsentError) {
+                    applyConsent(false);
+                    return;
+                }
+                console.warn("[tabdrift] place search failed:", err);
+                status.textContent = "Couldn't reach Open-Meteo. Check your connection and try again.";
             }
         };
 
         input.addEventListener("input", () => {
-            if (timer) {
-                clearTimeout(timer);
-            }
+            clearSearch();
             const query = input.value.trim();
-            if (query.length < 2) {
-                this.placeSearch?.abort();
-                results.textContent = "";
+            if (query.length < 2 || !allowed) {
                 status.textContent = "";
                 return;
             }
@@ -711,6 +773,7 @@ export class Customize {
             current.textContent = w.place
                 ? `Showing ${w.place.name}${w.place.detail ? `, ${w.place.detail}` : ""}`
                 : "Pick a place to show its weather next to the date.";
+            checkConsent();
         });
 
         return [
@@ -719,6 +782,7 @@ export class Customize {
                 (s) => s.weather.show,
                 (s, v) => ({ ...s, weather: { ...s.weather, show: v } }),
             ),
+            consentRow,
             current,
             h("div", { class: "control stacked" }, h("label", { class: "control-label", text: "Place", attrs: { for: id } }), input),
             results,
@@ -732,18 +796,11 @@ export class Customize {
                 (s) => s.weather.unit,
                 (s, v) => ({ ...s, weather: { ...s.weather, unit: v } }),
             ),
-            h("p", { class: "hint", text: "Weather comes from open-meteo.com. Only the place you pick is sent, never your address or IP location." }),
+            h("p", {
+                class: "hint",
+                text: "Tabdrift never looks up where you are. Only your search text and the place you pick go to Open-Meteo. You can also revoke this in about:addons.",
+            }),
         ];
-    }
-
-    private async allowLocationSharing(): Promise<boolean> {
-        try {
-            const request = browser.permissions.request as (p: { data_collection: string[] }) => Promise<boolean>;
-            return await request({ data_collection: ["locationInfo"] });
-        } catch {
-            // This browser or version doesn't know the data_collection permission — nothing to ask for.
-            return true;
-        }
     }
 
     private timerControls(): HTMLElement[] {

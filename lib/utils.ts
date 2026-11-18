@@ -379,8 +379,9 @@ function queryKeys(url: URL): string[] {
 }
 
 /**
- * Two tabs with the same key are showing the same page: tracking parameters,
- * the #fragment and a trailing slash are ignored. Used to find duplicate tabs.
+ * Loose page identity: tracking parameters, the #fragment and a trailing slash
+ * are ignored. Used for marks and for "this page is already open" hints, where
+ * a false match is harmless. Never use it to decide what to close.
  */
 export function duplicateKey(url: string): string {
     const clean = cleanUrl(url).url;
@@ -389,6 +390,71 @@ export function duplicateKey(url: string): string {
         return `${parsed.protocol}//${parsed.host}${parsed.pathname.replace(/\/+$/, "")}${parsed.search}`;
     }
     return clean.split("#")[0] ?? clean;
+}
+
+/**
+ * Strict page identity for destructive actions. Like duplicateKey() but keeps
+ * the #fragment, because single-page apps (Gmail, Outlook, many dashboards)
+ * route on it: `#inbox/abc` and `#inbox/xyz` are different threads. Only an
+ * empty "#" is dropped.
+ */
+export function exactPageKey(url: string): string {
+    const clean = cleanUrl(url).url;
+    const parsed = parseUrlInput(clean);
+    if (parsed) {
+        const hash = parsed.hash === "#" ? "" : parsed.hash;
+        return `${parsed.protocol}//${parsed.host}${parsed.pathname.replace(/\/+$/, "")}${parsed.search}${hash}`;
+    }
+    return clean;
+}
+
+export interface DuplicateCandidate {
+    url?: string;
+    /** Firefox container (or private browsing) the tab lives in. Tabs in different containers are separate sessions. */
+    cookieStoreId?: string;
+    incognito?: boolean;
+    pinned?: boolean;
+    active?: boolean;
+    current?: boolean;
+    lastAccessed?: number;
+}
+
+/**
+ * Tabs that show exactly the same page as another tab in the same container.
+ * One copy of each page is kept (the current tab, else a pinned one, else the
+ * active one, else the most recently used). Pinned and current tabs are never
+ * returned.
+ */
+export function findDuplicates<T extends DuplicateCandidate>(tabs: readonly T[]): T[] {
+    const groups = new Map<string, T[]>();
+    for (const tab of tabs) {
+        if (!tab.url) {
+            continue;
+        }
+        const store = tab.cookieStoreId ?? (tab.incognito ? "private" : "default");
+        const key = `${store}\u0000${exactPageKey(tab.url)}`;
+        const group = groups.get(key);
+        if (group) {
+            group.push(tab);
+        } else {
+            groups.set(key, [tab]);
+        }
+    }
+
+    const extras: T[] = [];
+    for (const group of groups.values()) {
+        if (group.length < 2) {
+            continue;
+        }
+        const byRecent = [...group].sort((a, b) => (b.lastAccessed ?? 0) - (a.lastAccessed ?? 0));
+        const keeper = byRecent.find((t) => t.current) ?? byRecent.find((t) => t.pinned) ?? byRecent.find((t) => t.active) ?? byRecent[0];
+        for (const tab of group) {
+            if (tab !== keeper && !tab.pinned && !tab.current) {
+                extras.push(tab);
+            }
+        }
+    }
+    return extras;
 }
 
 /** Origin + path only: no query string, no hash. */

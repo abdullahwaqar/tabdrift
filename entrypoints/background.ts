@@ -1,7 +1,7 @@
 import { defineBackground } from "wxt/utils/define-background";
 import { copyText } from "../lib/clipboard";
 import type { MovePlace, TabCommandId, TabCommandReply } from "../lib/commands";
-import { canMark, toggleMark } from "../lib/marks";
+import { canMark, handleMarkRequest, MARKS_MESSAGE, markStore } from "../lib/marks";
 import type { Prepared, Ranked } from "../lib/match";
 import { displayUrl, historyBoost, hostOf, plainWords, prepare, rankPrepared } from "../lib/match";
 import { getNewTabSettings } from "../lib/newtab/settings";
@@ -87,6 +87,11 @@ export default defineBackground(() => {
     });
 
     browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+        // All mark edits from the overlay, popup and settings page land here, on one queue.
+        if (message?.action === MARKS_MESSAGE) {
+            void handleMarkRequest(message).then(sendResponse);
+            return true;
+        }
         // The page the overlay is on, or for the popup, the tab it was opened over.
         const originTabId: number | undefined = sender.tab?.id ?? (Number.isInteger(message?.fromTabId) ? message.fromTabId : undefined);
 
@@ -110,6 +115,10 @@ export default defineBackground(() => {
                             audible: tab.audible,
                             muted: tab.mutedInfo?.muted === true,
                             discarded: tab.discarded,
+                            // Container identity, so the same URL in two containers isn't treated as a duplicate.
+                            // Firefox-only field, missing from the shared Tab type.
+                            cookieStoreId: (tab as { cookieStoreId?: string }).cookieStoreId,
+                            incognito: tab.incognito,
                             // The tab the overlay is open in. It can't be closed from its own overlay.
                             current: tab.id === originTabId,
                         })),
@@ -674,13 +683,17 @@ async function toggleMarkFor(tab: Browser.tabs.Tab) {
         flashBadge(tab.id, false);
         return;
     }
-    const marked = await toggleMark({ url: tab.url, title: tab.title, favIconUrl: tab.favIconUrl });
+    const outcome = await markStore.toggle({ url: tab.url, title: tab.title, favIconUrl: tab.favIconUrl });
+    const marked = outcome === "marked";
     if (tab.id !== undefined) {
         browser.action.setBadgeBackgroundColor({ color: marked ? "#ca8a04" : "#52525b", tabId: tab.id });
         browser.action.setBadgeText({ text: marked ? "\u2605" : "\u2606", tabId: tab.id });
         setTimeout(() => browser.action.setBadgeText({ text: "", tabId: tab.id }), 1500);
         if (!isRestrictedUrl(tab.url)) {
-            await sendToTab(tab.id, { action: "showToast", text: marked ? "Marked. Find it under * in Tabdrift" : "Unmarked" });
+            await sendToTab(tab.id, {
+                action: "showToast",
+                text: outcome === "full" ? "Marks are full (5,000). Remove some to add more" : marked ? "Marked. Find it under * in Tabdrift" : "Unmarked",
+            });
         }
     }
 }
